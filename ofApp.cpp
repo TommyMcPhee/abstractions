@@ -3,7 +3,8 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
     cout << "Welcome to Abstractions!" << endl;
-    stream.printDeviceList();
+    cout << "Test" << endl;
+    cout << stream.getDeviceList() << endl;
 
 }
 
