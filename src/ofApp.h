@@ -19,6 +19,6 @@ class ofApp : public ofBaseApp{
 		static const int inputChannels = 2;
 		static const int outputChannels = 2;
 		float inputBuffer[bufferSize * inputChannels];
-		float sample, lastSample = 0.0;
+		float phase, sample, lastSample = 0.0;
 		//this test code will have alternate behavior if inputChannels != outputChannels
 };
