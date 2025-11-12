@@ -42,9 +42,12 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
+    cout << phase << endl;
     for(int a = 0; a < buffer.getNumFrames(); a++){
         for(int b = 0; b < outputChannels; b++){
-        sample = (inputBuffer[a * outputChannels + b] - lastSample) / 2.0;
+        phase += pow(abs(inputBuffer[a * outputChannels + b] - lastSample) * 0.5, 4.0) * M_PI;
+        phase = fmod(phase, TWO_PI);
+        sample = sin(phase);
         buffer[a * outputChannels + b] = sample;
         lastSample = sample;
         //buffer[a * outputChannels + b] =  inputBuffer[a * outputChannels + b];
