@@ -7,6 +7,7 @@ class ofApp : public ofBaseApp{
 
 	public:
 		void setup() override;
+		ofSoundDevice inDevice, outDevice;
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 		void audioIn(ofSoundBuffer &buffer);
 		void audioOut(ofSoundBuffer &buffer);
@@ -21,4 +22,6 @@ class ofApp : public ofBaseApp{
 		float inputBuffer[bufferSize * inputChannels];
 		float phase, sample, lastSample = 0.0;
 		//this test code will have alternate behavior if inputChannels != outputChannels
+
+		unsigned int testInt;
 };
