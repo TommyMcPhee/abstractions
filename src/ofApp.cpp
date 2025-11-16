@@ -20,9 +20,7 @@ void ofApp::setup(){
     cout << "Enter index of output device:" << endl;
     std::cin >> outDeviceIndex;
     outDevice = stream.getDeviceList()[outDeviceIndex];
-    //make dynamic to the device
     settings.numInputChannels = inputChannels;
-    //inputcode
     settings.setOutDevice(stream.getDeviceList()[outDeviceIndex]);
     for(int a = 0; a < inDevice.sampleRates.size(); a++){
     cout << inDevice.sampleRates[a] << endl;
@@ -46,16 +44,21 @@ void ofApp::setup(){
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
     for(int a = 0; a < buffer.getNumFrames(); a++){
+        sampleCount++;
         for(int b = 0; b < outputChannels; b++){
-        inputBuffer[a * inputChannels + b] = buffer[a * inputChannels + b];
+        float inputSample = buffer[a * inputChannels + b];
+        if(std::fpclassify(inputSample) == FP_SUBNORMAL){
+            inputSample = 0.0;
+            cout << "Subnormal" << endl;
+        }
+        inputBuffer[a * inputChannels + b] = inputSample;
+        //recordedSamples.push_back(inputSample);
+        sampleTable[(uint_fast32_t)buffer[a * inputChannels + b]] = sampleCount;
         }
     }
 }
 
-void ofApp::audioOut(ofSoundBuffer &buffer){
-    //cout << phase << endl;
-    cout << testInt << endl;
-        
+void ofApp::audioOut(ofSoundBuffer &buffer){      
     for(int a = 0; a < buffer.getNumFrames(); a++){
         for(int b = 0; b < outputChannels; b++){
         phase += pow(abs(inputBuffer[a * outputChannels + b] - lastSample) * 0.5, 4.0) * M_PI;
@@ -63,16 +66,14 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         sample = sin(phase);
         buffer[a * outputChannels + b] = sample;
         lastSample = sample;
-        testInt = 0;
-        //buffer[a * outputChannels + b] =  inputBuffer[a * outputChannels + b];
+        buffer[a * outputChannels + b] = (float)sampleTable[(uint_fast32_t)inputBuffer[a * outputChannels + b]];
         }
     }
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-    //is the update function needed
-    testInt++;
+    //cout << recordedSamples.size() << endl;
 }
 
 //--------------------------------------------------------------
