@@ -1,5 +1,6 @@
 #include "ofApp.h"
 #include "ofSoundBaseTypes.h"
+#include <cstdint>
 
 //--------------------------------------------------------------
 
@@ -42,6 +43,16 @@ void ofApp::setup(){
     stream.setup(settings);
 }
 
+uint_fast32_t ofApp::uintConversion(float input){
+    //cout << static_cast<uint_fast32_t>(input * std::numeric_limits<float>::max()) << endl;
+    return static_cast<uint_fast32_t>(input * std::numeric_limits<float>::max());
+}
+
+float ofApp::floatConversion(uint_fast32_t input){
+    //cout << static_cast<float>(input * std::numeric_limits<float>::min()) << endl;
+    return static_cast<float>(input * std::numeric_limits<float>::min());
+}
+
 void ofApp::audioIn(ofSoundBuffer &buffer){
     for(int a = 0; a < buffer.getNumFrames(); a++){
         sampleCount++;
@@ -49,11 +60,11 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         float inputSample = buffer[a * inputChannels + b];
         if(std::fpclassify(inputSample) == FP_SUBNORMAL){
             inputSample = 0.0;
-            cout << "Subnormal" << endl;
+            //cout << "Subnormal" << endl;
         }
         inputBuffer[a * inputChannels + b] = inputSample;
         //recordedSamples.push_back(inputSample);
-        sampleTable[(uint_fast32_t)buffer[a * inputChannels + b]] = sampleCount;
+        sampleTable[uintConversion(inputSample)] = sampleCount;
         }
     }
 }
@@ -66,7 +77,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         sample = sin(phase);
         buffer[a * outputChannels + b] = sample;
         lastSample = sample;
-        buffer[a * outputChannels + b] = (float)sampleTable[(uint_fast32_t)inputBuffer[a * outputChannels + b]];
+        buffer[a * outputChannels + b] = floatConversion(sampleTable[uintConversion(inputBuffer[a * outputChannels + b])]);
         }
     }
 }
