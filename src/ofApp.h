@@ -22,6 +22,7 @@ class ofApp : public ofBaseApp{
 		static const int inputChannels = 2;
 		static const int outputChannels = 2;
 		float inputBuffer[bufferSize * inputChannels];
+<<<<<<< HEAD
 		uint_fast32_t sampleTable[UINT32_MAX / 4];
 		float phase, sample, lastSample = 0.0;
 		
@@ -33,4 +34,10 @@ class ofApp : public ofBaseApp{
 		}
 		*/
 	
+=======
+		float phase, sample, lastSample = 0.0;
+		//this test code will have alternate behavior if inputChannels != outputChannels
+
+		unsigned int testInt;
+>>>>>>> e14e65864e416c57799e77db1a676a9ac95ad13d
 };
