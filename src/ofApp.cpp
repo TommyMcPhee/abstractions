@@ -21,10 +21,6 @@ void ofApp::setup(){
     cout << "Enter index of output device:" << endl;
     std::cin >> outDeviceIndex;
     outDevice = stream.getDeviceList()[outDeviceIndex];
-<<<<<<< HEAD
-=======
-    //make dynamic to the device
->>>>>>> e14e65864e416c57799e77db1a676a9ac95ad13d
     settings.numInputChannels = inputChannels;
     settings.setOutDevice(stream.getDeviceList()[outDeviceIndex]);
     for(int a = 0; a < inDevice.sampleRates.size(); a++){
@@ -59,16 +55,16 @@ float ofApp::floatConversion(uint_fast32_t input){
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
     for(int a = 0; a < buffer.getNumFrames(); a++){
-        sampleCount++;
+        //sampleCount++;
         for(int b = 0; b < outputChannels; b++){
         float inputSample = buffer[a * inputChannels + b];
         if(std::fpclassify(inputSample) == FP_SUBNORMAL){
             inputSample = 0.0;
             //cout << "Subnormal" << endl;
         }
-        inputBuffer[a * inputChannels + b] = inputSample;
-        //recordedSamples.push_back(inputSample);
-        sampleTable[uintConversion(inputSample)] = sampleCount;
+        uint_fast32_t inputUint = uintConversion(inputSample);
+        inputBuffer[a * inputChannels + b] = inputUint;
+        sampleTable[inputUint] = sampleCount;
         }
     }
 }
@@ -76,20 +72,20 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 void ofApp::audioOut(ofSoundBuffer &buffer){      
     for(int a = 0; a < buffer.getNumFrames(); a++){
         for(int b = 0; b < outputChannels; b++){
+        sampleCount++;
         phase += pow(abs(inputBuffer[a * outputChannels + b] - lastSample) * 0.5, 4.0) * M_PI;
         phase = fmod(phase, TWO_PI);
         sample = sin(phase);
         buffer[a * outputChannels + b] = sample;
         lastSample = sample;
-        //buffer[a * outputChannels + b] = floatConversion(sampleTable[uintConversion(inputBuffer[a * outputChannels + b])]);
-        buffer[a * outputChannels + b] = ofRandomf();
+        buffer[a * outputChannels + b] = floatConversion(inputBuffer[a * outputChannels + b]);
         }
     }
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-    //cout << recordedSamples.size() << endl;
+    
 }
 
 //--------------------------------------------------------------

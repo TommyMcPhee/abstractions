@@ -21,16 +21,18 @@ class ofApp : public ofBaseApp{
 		static const int bufferSize = 256;
 		static const int inputChannels = 2;
 		static const int outputChannels = 2;
-		float inputBuffer[bufferSize * inputChannels];
+		uint_fast32_t inputBuffer[bufferSize * inputChannels];
 		uint_fast32_t sampleTable[UINT32_MAX / 4];
 		float phase, sample, lastSample = 0.0;
 		
 		uint_fast32_t sampleCount = 0;
 		
-		/*
-		struct sampleTimes {
+		struct sampleMap {
+			uint_fast32_t bit0[2];
+			uint_fast32_t bit1[4];
+			uint_fast32_t bit2[8];
+			uint_fast32_t bit3[16];
 
 		}
-		*/
 	
 };
