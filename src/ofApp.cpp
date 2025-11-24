@@ -73,14 +73,7 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
     }
 }
 
-<<<<<<< HEAD
 void ofApp::audioOut(ofSoundBuffer &buffer){      
-=======
-void ofApp::audioOut(ofSoundBuffer &buffer){
-    //cout << phase << endl;
-    cout << testInt << endl;
-        
->>>>>>> e14e65864e416c57799e77db1a676a9ac95ad13d
     for(int a = 0; a < buffer.getNumFrames(); a++){
         for(int b = 0; b < outputChannels; b++){
         phase += pow(abs(inputBuffer[a * outputChannels + b] - lastSample) * 0.5, 4.0) * M_PI;
@@ -88,24 +81,15 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         sample = sin(phase);
         buffer[a * outputChannels + b] = sample;
         lastSample = sample;
-<<<<<<< HEAD
-        buffer[a * outputChannels + b] = floatConversion(sampleTable[uintConversion(inputBuffer[a * outputChannels + b])]);
-=======
-        testInt = 0;
-        //buffer[a * outputChannels + b] =  inputBuffer[a * outputChannels + b];
->>>>>>> e14e65864e416c57799e77db1a676a9ac95ad13d
+        //buffer[a * outputChannels + b] = floatConversion(sampleTable[uintConversion(inputBuffer[a * outputChannels + b])]);
+        buffer[a * outputChannels + b] = ofRandomf();
         }
     }
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-<<<<<<< HEAD
     //cout << recordedSamples.size() << endl;
-=======
-    //is the update function needed
-    testInt++;
->>>>>>> e14e65864e416c57799e77db1a676a9ac95ad13d
 }
 
 //--------------------------------------------------------------
