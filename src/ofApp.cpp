@@ -45,12 +45,17 @@ void ofApp::setup(){
 
 uint_fast32_t ofApp::uintConversion(float input){
     //cout << static_cast<uint_fast32_t>(input * std::numeric_limits<float>::max()) << endl;
-    return static_cast<uint_fast32_t>(input * std::numeric_limits<float>::max());
+    //return static_cast<uint_fast32_t>(input * std::numeric_limits<float>::max());
+    float output;
+    memcpy(&output, &input, sizeof(uint_fast32_t));
+    return output;
 }
 
 float ofApp::floatConversion(uint_fast32_t input){
     //cout << static_cast<float>(input * std::numeric_limits<float>::min()) << endl;
-    return static_cast<float>(input * std::numeric_limits<float>::min());
+    float output;
+    memcpy(&output, &input, sizeof(uint_fast32_t));
+    return output;
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
@@ -73,19 +78,35 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
     for(int a = 0; a < buffer.getNumFrames(); a++){
         for(int b = 0; b < outputChannels; b++){
         sampleCount++;
+        /*
         phase += pow(abs(inputBuffer[a * outputChannels + b] - lastSample) * 0.5, 4.0) * M_PI;
         phase = fmod(phase, TWO_PI);
         sample = sin(phase);
+        */
+        //lastSample = sample;
+        //sample = floatConversion(sampleCount);
+        sample = floatConversion(sampleTable[inputBuffer[a * outputChannels + b]]);
+        averageSample += sample;
         buffer[a * outputChannels + b] = sample;
-        lastSample = sample;
-        buffer[a * outputChannels + b] = floatConversion(inputBuffer[a * outputChannels + b]);
         }
     }
+    averageSample = averageSample / 256.0;
+    cout << averageSample << endl;
+    averageSample = 0.0;
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-    
+    /*
+    while(true){
+        increment++;
+        sampleTable[increment] = rand();
+        //cout << increment << endl;
+        if(increment >= sampleTable.size()){
+            increment = 0;
+        }
+    }
+        */
 }
 
 //--------------------------------------------------------------
