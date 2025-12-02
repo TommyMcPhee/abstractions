@@ -22,9 +22,9 @@ class ofApp : public ofBaseApp{
 		static const int inputChannels = 2;
 		static const int outputChannels = 2;
 		uint_fast32_t inputBuffer[bufferSize * inputChannels];
-		std::array<std::atomic<uint_fast32_t>, UINT32_MAX / 4> sampleTable;
+		//std::array<std::atomic<uint_fast32_t>, UINT32_MAX / 4> sampleTable;
 		//float phase, sample, lastSample = 0.0;
-		
+		std::array<std::atomic<uint_fast32_t>, 16> sampleTable;
 		uint_fast32_t sampleCount = 0;
 		uint_fast32_t increment = 0;
 

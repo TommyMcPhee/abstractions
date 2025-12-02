@@ -9,6 +9,9 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 }
 
 void ofApp::setup(){
+    for(int a = 0; a < sampleTable.size(); a++){
+        sampleTable[a] = rand();
+    }
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
@@ -53,9 +56,12 @@ uint_fast32_t ofApp::uintConversion(float input){
 
 float ofApp::floatConversion(uint_fast32_t input){
     //cout << static_cast<float>(input * std::numeric_limits<float>::min()) << endl;
+    /*
     float output;
     memcpy(&output, &input, sizeof(uint_fast32_t));
     return output;
+    */
+    return (float)input / std::numeric_limits<float>::max();
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
@@ -68,7 +74,7 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
             //cout << "Subnormal" << endl;
         }
         uint_fast32_t inputUint = uintConversion(inputSample);
-        inputBuffer[a * inputChannels + b] = inputUint;
+        inputBuffer[a * inputChannels + b] = inputUint % sampleTable.size();
         sampleTable[inputUint] = sampleCount;
         }
     }
@@ -91,7 +97,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         }
     }
     averageSample = averageSample / 256.0;
-    cout << averageSample << endl;
+    //cout << averageSample << endl;
     averageSample = 0.0;
 }
 
