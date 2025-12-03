@@ -9,9 +9,11 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 }
 
 void ofApp::setup(){
+    /*
     for(int a = 0; a < sampleTable.size(); a++){
         sampleTable[a] = rand();
     }
+        */
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
@@ -69,13 +71,16 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         //sampleCount++;
         for(int b = 0; b < outputChannels; b++){
         float inputSample = buffer[a * inputChannels + b];
+        /*
         if(std::fpclassify(inputSample) == FP_SUBNORMAL){
             inputSample = 0.0;
             //cout << "Subnormal" << endl;
         }
         uint_fast32_t inputUint = uintConversion(inputSample);
         inputBuffer[a * inputChannels + b] = inputUint % sampleTable.size();
-        sampleTable[inputUint] = sampleCount;
+        */
+        inputBuffer[a * inputChannels + b] = inputSample;
+        //sampleTable[inputUint] = sampleCount;
         }
     }
 }
@@ -91,12 +96,14 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         */
         //lastSample = sample;
         //sample = floatConversion(sampleCount);
-        sample = floatConversion(sampleTable[inputBuffer[a * outputChannels + b]]);
-        averageSample += sample;
+        //sample = floatConversion(sampleTable[inputBuffer[a * outputChannels + b]]);
+        //averageSample += sample;
+        lastSample = sample;
+        sample = -1.0 * glm::mix(inputBuffer[a * outputChannels + b], lastSample, lastSample);
         buffer[a * outputChannels + b] = sample;
         }
     }
-    averageSample = averageSample / 256.0;
+    //averageSample = averageSample / 256.0;
     //cout << averageSample << endl;
     averageSample = 0.0;
 }
