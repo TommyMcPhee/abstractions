@@ -2,26 +2,26 @@
 
 #include "ofMain.h"
 #include "ofSoundStream.h"
+#include "ofxOscReceiver.h"
+#include "ofxOscSender.h"
 
 class ofApp : public ofBaseApp{
 
 	public:
+		ofxOscSender sender;
+		ofxOscReceiver receiver;
+		unsigned int in_channels, out_channels;
 		void setup() override;
-		ofSoundDevice inDevice, outDevice;
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
-		uint_fast32_t uintConversion(float input);
-		float floatConversion(uint_fast32_t input);
 		void audioIn(ofSoundBuffer &buffer);
 		void audioOut(ofSoundBuffer &buffer);
 		void update() override;
 		void exit() override;
 		ofSoundStreamSettings settings;
-		unsigned int inDeviceIndex, outDeviceIndex;
 		ofSoundStream stream;
 		static const int bufferSize = 256;
-		static const int inputChannels = 2;
-		static const int outputChannels = 2;
-		float inputBuffer[bufferSize * inputChannels];
+		//fix
+		float inputBuffer[bufferSize * 2];
 		//std::array<std::atomic<uint_fast32_t>, UINT32_MAX / 4> sampleTable;
 		//float phase, sample, lastSample = 0.0;
 		std::array<std::atomic<uint_fast32_t>, 16> sampleTable;

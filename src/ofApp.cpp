@@ -1,6 +1,7 @@
 #include "ofApp.h"
 #include "ofSoundBaseTypes.h"
 #include <cstdint>
+#include <ofxOsc.h>
 
 //--------------------------------------------------------------
 
@@ -9,86 +10,106 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 }
 
 void ofApp::setup(){
-    /*
-    for(int a = 0; a < sampleTable.size(); a++){
-        sampleTable[a] = rand();
-    }
-        */
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
     settings.bufferSize = 256;
+    unsigned int in_device_index, proposed_in_channels, out_device_index, proposed_out_channels, sample_rate_index;
+    ofSoundDevice in_device, out_device;
     cout << stream.getDeviceList() << endl;
     cout << "Enter index of input device:" << endl;
-    std::cin >> inDeviceIndex;
-    inDevice = stream.getDeviceList()[inDeviceIndex];
-    settings.setInDevice(inDevice);
-    cout << "Enter index of output device:" << endl;
-    std::cin >> outDeviceIndex;
-    outDevice = stream.getDeviceList()[outDeviceIndex];
-    settings.numInputChannels = inputChannels;
-    settings.setOutDevice(stream.getDeviceList()[outDeviceIndex]);
-    for(int a = 0; a < inDevice.sampleRates.size(); a++){
-    cout << inDevice.sampleRates[a] << endl;
+    std::cin >> in_device_index;
+    in_device = stream.getDeviceList()[in_device_index];
+    settings.setInDevice(in_device);
+    cout << "Enter number of input channels:" << endl;
+    in_channels_loop:
+    std::cin >> proposed_in_channels;
+    if(proposed_in_channels > 0 && proposed_in_channels <= in_device.inputChannels){
+        in_channels = proposed_in_channels;
+        settings.numInputChannels = in_channels;
     }
-    
+    else{
+        cout << "Please enter a valid number of input channels:" << endl;
+        goto in_channels_loop;
+    }
+    cout << "Enter index of output device:" << endl;
+    std::cin >> out_device_index;
+    out_device = stream.getDeviceList()[out_device_index];
+    settings.setOutDevice(stream.getDeviceList()[out_device_index]);
+    cout << "Enter number of output channels:" << endl;
+    out_channels_loop:
+    std::cin >> proposed_out_channels;
+    if(proposed_out_channels > 0 && proposed_out_channels <= out_device.outputChannels){
+        out_channels = proposed_out_channels;
+        settings.numOutputChannels = out_channels;
+    }
+    else{
+        cout << "Please enter a valid number of output channels:" << endl;
+        goto out_channels_loop;
+    }
+
+    for(int a = 0; a < in_device.sampleRates.size(); a++){
+    cout << in_device.sampleRates[a] << endl;
+    }
+    vector<int> shared_sample_rates;
+    for(int a = 0; a < in_device.sampleRates.size(); a++){
+        for(int b = 0; b < out_device.sampleRates.size(); b++)
+        if(in_device.sampleRates[a] == out_device.sampleRates[b]){
+            shared_sample_rates.push_back(in_device.sampleRates[a]);
+            cout << out_device.sampleRates[b] << endl;
+            break;
+        }
+    }
+    for(int a = 0; a < shared_sample_rates.size(); a++){
+        for(int b = a + 1; b < shared_sample_rates.size(); b++){
+            if(shared_sample_rates[a] == shared_sample_rates[b]){
+                shared_sample_rates[b] = 0;
+            }
+        }
+    }
+    shared_sample_rates.erase(std::find(shared_sample_rates.begin(), shared_sample_rates.end(), 0));
+    if(shared_sample_rates.size() == 0){
+        cout << "Please restart the program using new input and output devices, there are no shared sample rates between devices." << endl;
+    }
+    for(int a = 0; a < shared_sample_rates.size(); a++){
+        cout << "[" << a << "]  " << shared_sample_rates[a];
+    }
+    cout << "Enter the index of the desired sample rate from this list of shared sample rates between input and output devices:" << endl;
+    std::cin >> sample_rate_index;
+    settings.sampleRate = shared_sample_rates[sample_rate_index];
     //make dynamic to the device
-    settings.numOutputChannels = outputChannels;
     //set up supported sample rates and buffer sizes
     //FIX
+    
     cout << "Press any key for advanced settings, ENTER to begin the piece." << endl;
     if (std::cin.get() == '\n'){
-        cout << "Good job.\n";
+        stream.setup(settings);
     }
     else{
     cout << "I meant ONLY the ENTER key... Oh well.\n";
     }
     //API??
-    settings.sampleRate = 48000;
-    stream.setup(settings);
-}
-
-uint_fast32_t ofApp::uintConversion(float input){
-    //cout << static_cast<uint_fast32_t>(input * std::numeric_limits<float>::max()) << endl;
-    //return static_cast<uint_fast32_t>(input * std::numeric_limits<float>::max());
-    float output;
-    memcpy(&output, &input, sizeof(uint_fast32_t));
-    return output;
-}
-
-float ofApp::floatConversion(uint_fast32_t input){
-    //cout << static_cast<float>(input * std::numeric_limits<float>::min()) << endl;
-    /*
-    float output;
-    memcpy(&output, &input, sizeof(uint_fast32_t));
-    return output;
-    */
-    return (float)input / std::numeric_limits<float>::max();
+    
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
     for(int a = 0; a < buffer.getNumFrames(); a++){
-        //sampleCount++;
-        for(int b = 0; b < outputChannels; b++){
-        float inputSample = buffer[a * inputChannels + b];
-        /*
-        if(std::fpclassify(inputSample) == FP_SUBNORMAL){
-            inputSample = 0.0;
-            //cout << "Subnormal" << endl;
-        }
-        uint_fast32_t inputUint = uintConversion(inputSample);
-        inputBuffer[a * inputChannels + b] = inputUint % sampleTable.size();
-        */
-        inputBuffer[a * inputChannels + b] = inputSample;
-        //sampleTable[inputUint] = sampleCount;
+        for(int b = 0; b < in_channels; b++){
+        float inputSample = buffer[a * in_channels + b];
+        inputBuffer[a * in_channels + b] = inputSample;
         }
     }
 }
 
-void ofApp::audioOut(ofSoundBuffer &buffer){      
-    for(int a = 0; a < buffer.getNumFrames(); a++){
-        for(int b = 0; b < outputChannels; b++){
-        sampleCount++;
+void ofApp::audioOut(ofSoundBuffer &buffer){
+        for(int a = 0; a < buffer.getNumFrames(); a++){
+            for(int b = 0; b < out_channels; b++){
+                sample = -1.0 * glm::mix(inputBuffer[a * in_channels + b], lastSample, 0.5);
+                buffer[a * out_channels + b] = ofRandomf();
+            }
+        }
+    }      
+        //sampleCount++;
         /*
         phase += pow(abs(inputBuffer[a * outputChannels + b] - lastSample) * 0.5, 4.0) * M_PI;
         phase = fmod(phase, TWO_PI);
@@ -98,15 +119,11 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         //sample = floatConversion(sampleCount);
         //sample = floatConversion(sampleTable[inputBuffer[a * outputChannels + b]]);
         //averageSample += sample;
+        /*
         lastSample = sample;
-        sample = -1.0 * glm::mix(inputBuffer[a * outputChannels + b], lastSample, lastSample);
+        sample = -1.0 * glm::mix(inputBuffer[a * outputChannels + b], lastSample, fmod((float)callback, 4.0) / 4.0);
         buffer[a * outputChannels + b] = sample;
-        }
-    }
-    //averageSample = averageSample / 256.0;
-    //cout << averageSample << endl;
-    averageSample = 0.0;
-}
+        */
 
 //--------------------------------------------------------------
 void ofApp::update(){
