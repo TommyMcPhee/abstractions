@@ -8,23 +8,20 @@
 class ofApp : public ofBaseApp{
 
 	public:
+		std::array<int, 6> buffer_sizes;
 		ofxOscSender sender;
 		ofxOscReceiver receiver;
 		unsigned int in_channels, out_channels;
 		void setup() override;
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
-		void audioIn(ofSoundBuffer &buffer);
-		void audioOut(ofSoundBuffer &buffer);
+		void audioIn(ofSoundBuffer &buffer) override;
+		void audioOut(ofSoundBuffer &buffer) override;
 		void update() override;
 		void exit() override;
 		ofSoundStreamSettings settings;
 		ofSoundStream stream;
-		static const int bufferSize = 256;
-		//fix
-		float inputBuffer[bufferSize * 2];
-		//std::array<std::atomic<uint_fast32_t>, UINT32_MAX / 4> sampleTable;
-		//float phase, sample, lastSample = 0.0;
-		std::array<std::atomic<uint_fast32_t>, 16> sampleTable;
+
+		
 		uint_fast32_t sampleCount = 0;
 		uint_fast32_t increment = 0;
 
