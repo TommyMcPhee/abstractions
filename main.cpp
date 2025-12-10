@@ -1,19 +1,14 @@
 #include "ofMain.h"
 #include "ofApp.h"
+#include "ofAppNoWindow.h"
 
-//========================================================================
-int main( ){
+int main() {
+	auto window = std::make_shared<ofAppNoWindow>();
 
-	//Use ofGLFWWindowSettings for more options like multi-monitor fullscreen
-	ofGLWindowSettings settings;
-	settings.setSize(1024, 768);
-	settings.windowMode = OF_WINDOW; //can also be OF_FULLSCREEN
-
-	auto window = ofCreateWindow(settings);
-
-	ofRunApp(std::make_shared<ofApp>());
-	//ofAppNoWindow(std::make_shared<ofApp>());
-
-	//test pull
-
+	//to have a normal windowed app comment the line above and uncomment the lines below
+	//ofGLWindowSettings settings;
+	//auto window = ofCreateWindow(settings);
+	
+	ofRunApp(window, std::make_shared<ofApp>());
+	ofRunMainLoop();
 }
