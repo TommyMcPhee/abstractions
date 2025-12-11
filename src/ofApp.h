@@ -8,10 +8,19 @@
 class ofApp : public ofBaseApp{
 
 	public:
-		std::array<int, 6> buffer_sizes;
-		ofxOscSender sender;
+		std::array<int, 6> buffer_sizes = {64, 128,256, 512, 1024, 2048};
 		ofxOscReceiver receiver;
+		ofxOscSender sender;
+		struct message_destination{
+			string message_address;
+			int message_port;
+		};
+		vector<message_destination> message_destinations;
 		unsigned int in_channels, out_channels;
+
+		static const int sample_rate = 48000;
+
+
 		void setup() override;
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 		void audioIn(ofSoundBuffer &buffer) override;

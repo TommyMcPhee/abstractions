@@ -46,7 +46,7 @@ void ofApp::setup(){
         cout << "Please enter a valid number of output channels:" << endl;
         goto out_channels_loop;
     }
-
+    /*
     for(int a = 0; a < in_device.sampleRates.size(); a++){
     cout << in_device.sampleRates[a] << endl;
     }
@@ -76,6 +76,9 @@ void ofApp::setup(){
     cout << "Enter the index of the desired sample rate from this list of shared sample rates between input and output devices:" << endl;
     std::cin >> sample_rate_index;
     settings.sampleRate = shared_sample_rates[sample_rate_index];
+    */
+    settings.sampleRate = sample_rate;
+
     for(int a = 0; a < buffer_sizes.size(); a++){
         cout << "[" << a << "]  " << buffer_sizes[a];
     }
@@ -83,14 +86,38 @@ void ofApp::setup(){
     std::cin >> buffer_size_index;
     settings.bufferSize = buffer_sizes[buffer_size_index];
     cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
-    if (std::cin.get() == '\n'){
-        stream.setup(settings);
-    }
-    else{
+    //if (std::cin.get() == '\n'){
+        //stream.setup(settings);
+    //}
+    //else{
+        cout << "Enter the reciever's network address (press ENTER for default ""localhost""):" << endl;
+        string host;
+        if(std::cin.get() == '\n'){
+            host = "localhost";
+        }
+        else{
+            std::cin >> host;
+        }
+        cout << "Enter the reciever's port number:" << endl;
+        int port;
+        std::cin >> port;
+        receiver.setup(host, port);
         osc_sender_loop:
-    }
-    //API??
-    
+        while(true){
+            cout << "Press any key to add a new node, ENTER to begin the piece." << endl;
+            if (std::cin.get() == '\n'){
+                stream.setup(settings);
+            }
+            else{
+                message_destination next_message_destination;
+                cout << "Enter the network address of the node:" << endl;
+                std::cin >> next_message_destination.message_address;
+                cout << "Enter the port of the node:" << endl;
+                std::cin >> next_message_destination.message_port;
+                goto osc_sender_loop;
+            }
+        }
+    //}
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
