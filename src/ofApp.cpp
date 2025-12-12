@@ -85,6 +85,7 @@ void ofApp::setup(){
     cout << "Enter the index of the desired buffer size (chosen buffer size must be compatible with your input and output device)" << endl;
     std::cin >> buffer_size_index;
     settings.bufferSize = buffer_sizes[buffer_size_index];
+    /*
     cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
     //if (std::cin.get() == '\n'){
         //stream.setup(settings);
@@ -118,6 +119,22 @@ void ofApp::setup(){
             }
         }
     //}
+    */
+    cout << "Enter the receiver's IP address:" << endl;
+    string receiver_ip;
+    std::cin >> receiver_ip;
+    cout << "Enter the receiver's port number:" << endl;
+    int receiver_port;
+    std::cin >> receiver_port;
+    receiver.setup(receiver_ip, receiver_port);
+    cout << "Enter the node's IP address:" << endl;
+    string node_ip;
+    std::cin >> node_ip;
+    cout << "Enter the node's port number:" << endl;
+    int node_port;
+    std::cin >> node_port;
+    sender.setup(node_ip, node_port);
+    stream.setup(settings);
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
@@ -131,7 +148,7 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 void ofApp::audioOut(ofSoundBuffer &buffer){
         for(int a = 0; a < buffer.getNumFrames(); a++){
             for(int b = 0; b < out_channels; b++){
-                sample = ofRandomf();
+                sample = ofRandomf() * amp;
                 buffer[a * out_channels + b] = sample;
             }
         }
@@ -146,6 +163,9 @@ void ofApp::update(){
 	m.addStringArg( "hello" );
 	m.addFloatArg( ofGetElapsedTimef() );
 	sender.sendMessage( m );
+    if(receiver.hasWaitingMessages()){
+        amp = 0.5;
+    }
 
 }
 

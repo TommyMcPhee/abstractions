@@ -35,5 +35,7 @@ class ofApp : public ofBaseApp{
 		uint_fast32_t increment = 0;
 
 		float lastSample = 0.0, sample = 0.0, averageSample;
+
+		std::atomic<float> amp = 0.2;
 	
 };

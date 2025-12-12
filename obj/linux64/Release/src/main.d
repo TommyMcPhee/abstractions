@@ -322,6 +322,21 @@ obj/linux64/Release/src/main.o: src/main.cpp \
  ../../../libs/openFrameworks/3d/of3dUtils.h \
  ../../../libs/openFrameworks/3d/ofCamera.h \
  ../../../libs/openFrameworks/3d/ofEasyCam.h src/ofApp.h \
+ ../../../addons/ofxOsc/src/ofxOscReceiver.h \
+ ../../../addons/ofxOsc/src/ofxOscMessage.h \
+ ../../../addons/ofxOsc/src/ofxOscArg.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/osc/OscPacketListener.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/osc/OscReceivedElements.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/osc/OscTypes.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/osc/OscException.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/osc/../ip/PacketListener.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/osc/OscTypes.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/ip/UdpSocket.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/ip/NetworkingUtils.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/ip/IpEndpointName.h \
+ ../../../addons/ofxOsc/src/ofxOscSender.h \
+ ../../../addons/ofxOsc/libs/oscpack/src/osc/OscOutboundPacketStream.h \
+ ../../../addons/ofxOsc/src/ofxOscBundle.h \
  ../../../libs/openFrameworks/app/ofAppNoWindow.h
 ../../../libs/openFrameworks/ofMain.h:
 ../../../libs/openFrameworks/utils/ofConstants.h:
@@ -647,4 +662,19 @@ obj/linux64/Release/src/main.o: src/main.cpp \
 ../../../libs/openFrameworks/3d/ofCamera.h:
 ../../../libs/openFrameworks/3d/ofEasyCam.h:
 src/ofApp.h:
+../../../addons/ofxOsc/src/ofxOscReceiver.h:
+../../../addons/ofxOsc/src/ofxOscMessage.h:
+../../../addons/ofxOsc/src/ofxOscArg.h:
+../../../addons/ofxOsc/libs/oscpack/src/osc/OscPacketListener.h:
+../../../addons/ofxOsc/libs/oscpack/src/osc/OscReceivedElements.h:
+../../../addons/ofxOsc/libs/oscpack/src/osc/OscTypes.h:
+../../../addons/ofxOsc/libs/oscpack/src/osc/OscException.h:
+../../../addons/ofxOsc/libs/oscpack/src/osc/../ip/PacketListener.h:
+../../../addons/ofxOsc/libs/oscpack/src/osc/OscTypes.h:
+../../../addons/ofxOsc/libs/oscpack/src/ip/UdpSocket.h:
+../../../addons/ofxOsc/libs/oscpack/src/ip/NetworkingUtils.h:
+../../../addons/ofxOsc/libs/oscpack/src/ip/IpEndpointName.h:
+../../../addons/ofxOsc/src/ofxOscSender.h:
+../../../addons/ofxOsc/libs/oscpack/src/osc/OscOutboundPacketStream.h:
+../../../addons/ofxOsc/src/ofxOscBundle.h:
 ../../../libs/openFrameworks/app/ofAppNoWindow.h:
