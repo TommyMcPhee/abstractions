@@ -34,8 +34,16 @@ class ofApp : public ofBaseApp{
 		uint_fast32_t sampleCount = 0;
 		uint_fast32_t increment = 0;
 
-		float lastSample = 0.0, sample = 0.0, averageSample;
+		float lastSample = 0.0, input_sample = 0.0, sample = 0.0, averageSample, pointerValue;
 
 		std::atomic<float> amp = 0.2;
+
+		float *pointer = &sample;
+
+		std::unique_ptr<float[]> input_buffer;
+
+		float inputBuffer[4096];
+
+		float *testpointer = &input_sample;
 	
 };
