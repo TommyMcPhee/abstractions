@@ -10,6 +10,9 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 }
 
 void ofApp::setup(){
+    for(int a = 0; a < test_fir_kernel.size(); a++){
+        test_fir_kernel[a] = ofRandomf();
+    }
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
@@ -143,6 +146,9 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
     for(int a = 0; a < buffer.getNumFrames(); a++){
         for(int b = 0; b < in_channels; b++){
         input_buffer[a * in_channels + b] = buffer[a * in_channels + b];
+        if(a < test_input_array.size()){
+            test_input_array[a] = input_buffer[a];
+        }
         //inputBuffer[a * in_channels + b] = buffer[a * in_channels + b];
         }
     }
@@ -153,22 +159,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
     //cout << pointerValue << endl;
         for(int a = 0; a < buffer.getNumFrames(); a++){
             for(int b = 0; b < out_channels; b++){
-                if(pointer != nullptr){
-                    pointerValue = abs(*pointer);
-                }
-                else{
-                    sample = 0.0;
-                }
-                if(input_sample > 0){
-                    pointer--;
-                }
-                else{
-                    //pointer--;
-                }
+                sample = std::inner_product(test_fir_kernel.begin(), test_fir_kernel.end(), test_input_array.begin(), 8);
                 //pointer++;
                 //buffer[a * out_channels + b] = *input_buffer;
                 //input_buffer++;
-                sample = glm::mix(input_buffer[a * out_channels + b], lastSample, fmod(pointerValue, 1.0));
                 buffer[a * out_channels + b] = sample;
                 lastSample = sample;
             }

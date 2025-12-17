@@ -38,9 +38,10 @@ class ofApp : public ofBaseApp{
 
 		std::atomic<float> amp = 0.2;
 
-		float *pointer = &sample;
-
 		std::unique_ptr<float[]> input_buffer;
+
+		std::array<float, 8> test_fir_kernel;
+		std::array<float, 64> test_input_array;
 
 		float inputBuffer[4096];
 
