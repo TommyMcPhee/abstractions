@@ -322,6 +322,7 @@ obj/linux64/Release/src/main.o: src/main.cpp \
  ../../../libs/openFrameworks/3d/of3dUtils.h \
  ../../../libs/openFrameworks/3d/ofCamera.h \
  ../../../libs/openFrameworks/3d/ofEasyCam.h src/ofApp.h \
+ ../../../libs/json/include/nlohmann/json.hpp \
  ../../../addons/ofxOsc/src/ofxOscReceiver.h \
  ../../../addons/ofxOsc/src/ofxOscMessage.h \
  ../../../addons/ofxOsc/src/ofxOscArg.h \
@@ -662,6 +663,7 @@ obj/linux64/Release/src/main.o: src/main.cpp \
 ../../../libs/openFrameworks/3d/ofCamera.h:
 ../../../libs/openFrameworks/3d/ofEasyCam.h:
 src/ofApp.h:
+../../../libs/json/include/nlohmann/json.hpp:
 ../../../addons/ofxOsc/src/ofxOscReceiver.h:
 ../../../addons/ofxOsc/src/ofxOscMessage.h:
 ../../../addons/ofxOsc/src/ofxOscArg.h:

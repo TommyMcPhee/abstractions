@@ -1,4 +1,5 @@
 obj/linux64/Release/src/ofApp.o: src/ofApp.cpp src/ofApp.h \
+ ../../../libs/json/include/nlohmann/json.hpp \
  ../../../libs/openFrameworks/ofMain.h \
  ../../../libs/openFrameworks/utils/ofConstants.h \
  ../../../libs/tess2/include/tesselator.h \
@@ -339,6 +340,7 @@ obj/linux64/Release/src/ofApp.o: src/ofApp.cpp src/ofApp.h \
  ../../../addons/ofxOsc/src/ofxOscBundle.h \
  ../../../addons/ofxOsc/src/ofxOsc.h
 src/ofApp.h:
+../../../libs/json/include/nlohmann/json.hpp:
 ../../../libs/openFrameworks/ofMain.h:
 ../../../libs/openFrameworks/utils/ofConstants.h:
 ../../../libs/tess2/include/tesselator.h:

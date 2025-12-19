@@ -11,7 +11,8 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 
 void ofApp::setup(){
     for(int a = 0; a < test_fir_kernel.size(); a++){
-        test_fir_kernel[a] = ofRandomf();
+        test_fir_kernel[a] = 1.0;
+        //test_fir_kernel[a] = ofRandomf();
     }
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
@@ -87,8 +88,11 @@ void ofApp::setup(){
     }
     cout << "Enter the index of the desired buffer size (chosen buffer size must be compatible with your input and output device)" << endl;
     std::cin >> buffer_size_index;
+    buffer_size = buffer_sizes[buffer_size_index];
     settings.bufferSize = buffer_sizes[buffer_size_index];
-    input_buffer = std::make_unique<float[]>(buffer_sizes[buffer_size_index] * in_channels);
+    in_frames = buffer_size * in_channels;
+    input_buffer = std::make_unique<float[]>(in_frames);
+    padded_input_buffer = std::make_unique<float[]>(in_frames + test_fir_kernel.size());
     /*
     cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
     //if (std::cin.get() == '\n'){
@@ -143,12 +147,14 @@ void ofApp::setup(){
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
-    for(int a = 0; a < buffer.getNumFrames(); a++){
-        for(int b = 0; b < in_channels; b++){
-        input_buffer[a * in_channels + b] = buffer[a * in_channels + b];
+    for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
+        for(unsigned int b = 0; b < in_channels; b++){
+        padded_input_buffer[a * in_channels + b] = buffer[a * in_channels + b];
+        /*
         if(a < test_input_array.size()){
             test_input_array[a] = input_buffer[a];
         }
+            */
         //inputBuffer[a * in_channels + b] = buffer[a * in_channels + b];
         }
     }
@@ -157,25 +163,23 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
     //cout << pointerValue << endl;
-        for(int a = 0; a < buffer.getNumFrames(); a++){
-            for(int b = 0; b < out_channels; b++){
-                sample = std::inner_product(test_fir_kernel.begin(), test_fir_kernel.end(), test_input_array.begin(), 8);
+        for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
+            for(unsigned int b = 0; b < out_channels; b++){
+                sample = std::inner_product(test_fir_kernel.begin(), test_fir_kernel.end(), &padded_input_buffer[a * in_channels + b], 0) / (float)test_fir_kernel.size();
                 //pointer++;
                 //buffer[a * out_channels + b] = *input_buffer;
                 //input_buffer++;
+                //sample = input_buffer[a * in_channels + b];
                 buffer[a * out_channels + b] = sample;
-                lastSample = sample;
+                lastSample = lastSample + sample;
             }
         }
-        //input_buffer -= buffer.getNumFrames();
+        lastSample = lastSample / (float)buffer.getNumFrames();
+        
     }      
 
 //--------------------------------------------------------------
 void ofApp::update(){
-    if(testpointer != nullptr){
-    cout << *testpointer << endl;
-    testpointer ++;
-    }
     /*
     ofxOscMessage m;
     m.setAddress( "/test" );
