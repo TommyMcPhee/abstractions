@@ -17,7 +17,7 @@ class ofApp : public ofBaseApp{
 			int message_port;
 		};
 		vector<message_destination> message_destinations;
-		unsigned int in_channels, out_channels, buffer_size, in_frames;
+		unsigned int in_channels, out_channels, buffer_size, in_frames, out_frames;
 
 		static const int sample_rate = 48000;
 
@@ -35,11 +35,12 @@ class ofApp : public ofBaseApp{
 		uint_fast32_t sampleCount = 0;
 		uint_fast32_t increment = 0;
 
-		std::atomic<float> lastSample = 0.0, input_sample = 0.0, sample = 0.0, averageSample, pointerValue;
+		std::atomic<float> input_sample = 0.0, sample = 0.0, averageSample, pointerValue;
 
-		std::atomic<float> amp = 0.2;
+		//std::atomic<float> amp = 0.2;
 
-		std::unique_ptr<float[]> input_buffer, padded_input_buffer;
-		std::array<float, 2> test_fir_kernel;
+		std::unique_ptr<float[]> in_buffer;
+		std::unique_ptr<float[]> previous_out;
+		unsigned int filterIndex;
 	
 };

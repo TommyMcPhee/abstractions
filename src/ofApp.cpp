@@ -10,10 +10,6 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 }
 
 void ofApp::setup(){
-    for(int a = 0; a < test_fir_kernel.size(); a++){
-        test_fir_kernel[a] = 1.0;
-        //test_fir_kernel[a] = ofRandomf();
-    }
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
@@ -91,8 +87,9 @@ void ofApp::setup(){
     buffer_size = buffer_sizes[buffer_size_index];
     settings.bufferSize = buffer_sizes[buffer_size_index];
     in_frames = buffer_size * in_channels;
-    input_buffer = std::make_unique<float[]>(in_frames);
-    padded_input_buffer = std::make_unique<float[]>(in_frames + test_fir_kernel.size());
+    out_frames = buffer_size * out_channels;
+    in_buffer = std::make_unique<float[]>(in_frames);
+    previous_out = std::make_unique<float[]>(out_frames);
     /*
     cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
     //if (std::cin.get() == '\n'){
@@ -148,8 +145,9 @@ void ofApp::setup(){
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
-        for(unsigned int b = 0; b < in_channels; b++){
-        padded_input_buffer[a * in_channels + b] = buffer[a * in_channels + b];
+        for(unsigned int b = 0; b < in_channels; b++){ 
+        //in_buffer[a * in_channels + b] = buffer[a * in_channels + b];
+        in_buffer[a * in_channels + b] = buffer[a * in_channels + b];
         /*
         if(a < test_input_array.size()){
             test_input_array[a] = input_buffer[a];
@@ -162,20 +160,23 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
-    //cout << pointerValue << endl;
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
             for(unsigned int b = 0; b < out_channels; b++){
-                sample = std::inner_product(test_fir_kernel.begin(), test_fir_kernel.end(), &padded_input_buffer[a * in_channels + b], 0) / (float)test_fir_kernel.size();
+                //sample = std::inner_product(test_fir_kernel.begin(), test_fir_kernel.end(), &padded_input_buffer[a * in_channels + b], 0) / (float)test_fir_kernel.size();
                 //pointer++;
                 //buffer[a * out_channels + b] = *input_buffer;
                 //input_buffer++;
                 //sample = input_buffer[a * in_channels + b];
+                filterIndex++;
+                filterIndex %= buffer.getNumFrames();
+                sample = glm::mix(in_buffer[a * in_channels + (b % in_channels)], previous_out[filterIndex], 0.9);
                 buffer[a * out_channels + b] = sample;
-                lastSample = lastSample + sample;
+                for(unsigned int c = out_frames - 1; c > 0; c--){
+                    previous_out[c] = previous_out[c - 1];
+                };
+                previous_out[0] = sample;
             }
-        }
-        lastSample = lastSample / (float)buffer.getNumFrames();
-        
+        }       
     }      
 
 //--------------------------------------------------------------
