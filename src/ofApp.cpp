@@ -169,7 +169,13 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 //sample = input_buffer[a * in_channels + b];
                 filterIndex++;
                 filterIndex %= buffer.getNumFrames();
-                sample = glm::mix(in_buffer[a * in_channels + (b % in_channels)], previous_out[filterIndex], 0.9);
+                sample = in_buffer[a * in_channels + b];
+                for(int c = 0; c < 2; c++){
+                    sample = sample * (2.0 - abs(sample - previous_out[c]));
+                }
+                
+                // * (1.0 - abs(previous_out[0]));
+                //sample = glm::mix(in_buffer[a * in_channels + (b % in_channels)], previous_out[filterIndex], 0.9);
                 buffer[a * out_channels + b] = sample;
                 for(unsigned int c = out_frames - 1; c > 0; c--){
                     previous_out[c] = previous_out[c - 1];
