@@ -1,6 +1,7 @@
 #include "ofApp.h"
 #include "ofSoundBaseTypes.h"
 #include <cstdint>
+#include <algorithm>
 #include <ofxOsc.h>
 
 //--------------------------------------------------------------
@@ -89,6 +90,7 @@ void ofApp::setup(){
     in_frames = buffer_size * in_channels;
     out_frames = buffer_size * out_channels;
     in_buffer = std::make_unique<float[]>(in_frames);
+    coefficients = std::make_unique<float[]>(out_frames);
     previous_out = std::make_unique<float[]>(out_frames);
     /*
     cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
@@ -143,6 +145,10 @@ void ofApp::setup(){
     stream.setup(settings);
 }
 
+float mod_quotient(float in, float mod){
+    return fmod(in, mod) / mod;
+}
+
 void ofApp::audioIn(ofSoundBuffer &buffer){
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         for(unsigned int b = 0; b < in_channels; b++){ 
@@ -161,25 +167,28 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
+            sample_count++;
             for(unsigned int b = 0; b < out_channels; b++){
                 //sample = std::inner_product(test_fir_kernel.begin(), test_fir_kernel.end(), &padded_input_buffer[a * in_channels + b], 0) / (float)test_fir_kernel.size();
                 //pointer++;
                 //buffer[a * out_channels + b] = *input_buffer;
                 //input_buffer++;
                 //sample = input_buffer[a * in_channels + b];
+                /*
                 filterIndex++;
                 filterIndex %= buffer.getNumFrames();
-                sample = in_buffer[a * in_channels + b];
-                for(int c = 0; c < 2; c++){
-                    sample = sample * (2.0 - abs(sample - previous_out[c]));
-                }
-                
-                // * (1.0 - abs(previous_out[0]));
-                //sample = glm::mix(in_buffer[a * in_channels + (b % in_channels)], previous_out[filterIndex], 0.9);
-                buffer[a * out_channels + b] = sample;
+                */
+                float in_sample = in_buffer[a * in_channels + b];
+                phase += in_sample;
+                sample = sin(phase);
+                /*
                 for(unsigned int c = out_frames - 1; c > 0; c--){
+                    coefficients[c] = mod_quotient((float)sample_count, (float)c) / (float)(c + 2);
+                    sample = glm::mix(sample, previous_out[c], coefficients[c]);
                     previous_out[c] = previous_out[c - 1];
                 };
+                */
+                buffer[a * out_channels + b] = sample;
                 previous_out[0] = sample;
             }
         }       
