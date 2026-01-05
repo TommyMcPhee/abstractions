@@ -42,6 +42,7 @@ void ofApp::setup(){
     if(proposed_out_channels > 0 && proposed_out_channels <= out_device.outputChannels){
         out_channels = proposed_out_channels;
         settings.numOutputChannels = out_channels;
+        phase = std::make_unique<float[]>(out_channels);
     }
     else{
         cout << "Please enter a valid number of output channels:" << endl;
@@ -169,27 +170,17 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
             sample_count++;
             for(unsigned int b = 0; b < out_channels; b++){
-                //sample = std::inner_product(test_fir_kernel.begin(), test_fir_kernel.end(), &padded_input_buffer[a * in_channels + b], 0) / (float)test_fir_kernel.size();
-                //pointer++;
-                //buffer[a * out_channels + b] = *input_buffer;
-                //input_buffer++;
-                //sample = input_buffer[a * in_channels + b];
-                /*
-                filterIndex++;
-                filterIndex %= buffer.getNumFrames();
-                */
                 float in_sample = in_buffer[a * in_channels + b];
-                phase += in_sample;
-                sample = sin(phase);
-                /*
+                //float phase_increment = 1.0 - (0.5 * abs(in_sample - previous_out[b]));
+                float phase_increment = 0.0125;
+                phase[b] += phase_increment;
+                float sample = sin(phase[b]) * (1.0 - (0.5 * abs(in_sample - previous_out[b])));
+                //fix
                 for(unsigned int c = out_frames - 1; c > 0; c--){
-                    coefficients[c] = mod_quotient((float)sample_count, (float)c) / (float)(c + 2);
-                    sample = glm::mix(sample, previous_out[c], coefficients[c]);
                     previous_out[c] = previous_out[c - 1];
                 };
-                */
                 buffer[a * out_channels + b] = sample;
-                previous_out[0] = sample;
+                previous_out[b] = sample;
             }
         }       
     }      
