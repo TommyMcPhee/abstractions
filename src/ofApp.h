@@ -37,7 +37,7 @@ class ofApp : public ofBaseApp{
 		uint_fast32_t sampleCount = 0;
 		uint_fast32_t increment = 0;
 
-		std::unique_ptr<float[]> phase, z0, z1, z2;
+		std::unique_ptr<float[]> modulator_phase, carrier_phase, index;
 
 		//std::atomic<float> amp = 0.2;
 

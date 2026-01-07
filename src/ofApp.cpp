@@ -42,7 +42,9 @@ void ofApp::setup(){
     if(proposed_out_channels > 0 && proposed_out_channels <= out_device.outputChannels){
         out_channels = proposed_out_channels;
         settings.numOutputChannels = out_channels;
-        phase = std::make_unique<float[]>(out_channels);
+        modulator_phase = std::make_unique<float[]>(out_channels);
+        carrier_phase = std::make_unique<float[]>(out_channels);
+        index = std::make_unique<float[]>(out_channels);
         //fix channels
     }
     else{
@@ -165,8 +167,9 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         for(unsigned int c = filter_frames - (in_channels - b); c >= in_channels; c -= in_channels){
             filter_buffer[c] = filter_buffer[c - 1];
         }
-        filter_buffer[b] = goetzel(1.0 / (buffer[a * in_channels + b] + std::numeric_limits<float>::min()), buffer[a * in_channels + b], filter_buffer[in_channels + b], filter_buffer[in_channels * 2 + b]);
+        filter_buffer[b] = goetzel(32.0, buffer[a * in_channels + b], filter_buffer[in_channels + b], filter_buffer[in_channels * 2 + b]);
         in_buffer[a * in_channels + b] = filter_buffer[b];
+        //in_buffer[a * in_channels + b] = buffer[a * in_channels + b];
         /*
         if(a < test_input_array.size()){
             test_input_array[a] = input_buffer[a];
@@ -181,7 +184,11 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
             sample_count++;
             for(unsigned int b = 0; b < out_channels; b++){
-                float sample = ofRandomf() * in_buffer[a * in_channels+ b];
+                float phase_increment = 1.0 / 32.0;
+                modulator_phase[b] += phase_increment;
+                index[b] = 4.0;
+                carrier_phase[b] += phase_increment * sin(modulator_phase[b]) * index[b];
+                float sample = sin(carrier_phase[b]) * in_buffer[a * in_channels+ b];
                 /*
                 //float phase_increment = 1.0 - (0.5 * abs(in_sample - previous_out[b]));
                 float phase_increment = 0.0125;
