@@ -17,13 +17,15 @@ class ofApp : public ofBaseApp{
 			int message_port;
 		};
 		vector<message_destination> message_destinations;
-		unsigned int in_channels, out_channels, buffer_size, in_frames, out_frames, sample_count = 0;
+		unsigned int in_channels, out_channels, buffer_size, in_frames, filter_frames, out_frames, sample_count = 0;
 
 		static const int sample_rate = 48000;
 
 
 		void setup() override;
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
+		float mod_quotient(float in, float mod);
+		float goetzel(float samples, float z0, float z1, float z2);
 		void audioIn(ofSoundBuffer &buffer) override;
 		void audioOut(ofSoundBuffer &buffer) override;
 		void update() override;
@@ -35,10 +37,10 @@ class ofApp : public ofBaseApp{
 		uint_fast32_t sampleCount = 0;
 		uint_fast32_t increment = 0;
 
-		std::unique_ptr<float[]> phase;
+		std::unique_ptr<float[]> phase, z0, z1, z2;
 
 		//std::atomic<float> amp = 0.2;
 
-		std::unique_ptr<float[]> in_buffer, previous_out, coefficients;
+		std::unique_ptr<float[]> in_buffer, filter_buffer, previous_out;
 	
 };

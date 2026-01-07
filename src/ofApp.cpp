@@ -43,6 +43,7 @@ void ofApp::setup(){
         out_channels = proposed_out_channels;
         settings.numOutputChannels = out_channels;
         phase = std::make_unique<float[]>(out_channels);
+        //fix channels
     }
     else{
         cout << "Please enter a valid number of output channels:" << endl;
@@ -89,9 +90,11 @@ void ofApp::setup(){
     buffer_size = buffer_sizes[buffer_size_index];
     settings.bufferSize = buffer_sizes[buffer_size_index];
     in_frames = buffer_size * in_channels;
+    filter_frames = 3 * in_channels;
+    cout << filter_frames << endl;
     out_frames = buffer_size * out_channels;
     in_buffer = std::make_unique<float[]>(in_frames);
-    coefficients = std::make_unique<float[]>(out_frames);
+    filter_buffer = std::make_unique<float[]>(filter_frames);
     previous_out = std::make_unique<float[]>(out_frames);
     /*
     cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
@@ -146,15 +149,24 @@ void ofApp::setup(){
     stream.setup(settings);
 }
 
-float mod_quotient(float in, float mod){
+float ofApp::mod_quotient(float in, float mod){
     return fmod(in, mod) / mod;
+}
+
+float ofApp::goetzel(float samples, float z0, float z1, float z2){
+    float constant = 2.0 * cos(TWO_PI / samples);
+    return (z0 + constant * z1 - z2) / 3.0;
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         for(unsigned int b = 0; b < in_channels; b++){ 
         //in_buffer[a * in_channels + b] = buffer[a * in_channels + b];
-        in_buffer[a * in_channels + b] = buffer[a * in_channels + b];
+        for(unsigned int c = filter_frames - (in_channels - b); c >= in_channels; c -= in_channels){
+            filter_buffer[c] = filter_buffer[c - 1];
+        }
+        filter_buffer[b] = goetzel(1.0 / (buffer[a * in_channels + b] + std::numeric_limits<float>::min()), buffer[a * in_channels + b], filter_buffer[in_channels + b], filter_buffer[in_channels * 2 + b]);
+        in_buffer[a * in_channels + b] = filter_buffer[b];
         /*
         if(a < test_input_array.size()){
             test_input_array[a] = input_buffer[a];
@@ -163,24 +175,28 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         //inputBuffer[a * in_channels + b] = buffer[a * in_channels + b];
         }
     }
-    //input_buffer -= buffer.getNumFrames();
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
             sample_count++;
             for(unsigned int b = 0; b < out_channels; b++){
-                float in_sample = in_buffer[a * in_channels + b];
+                float sample = ofRandomf() * in_buffer[a * in_channels+ b];
+                /*
                 //float phase_increment = 1.0 - (0.5 * abs(in_sample - previous_out[b]));
                 float phase_increment = 0.0125;
                 phase[b] += phase_increment;
-                float sample = sin(phase[b]) * (1.0 - (0.5 * abs(in_sample - previous_out[b])));
+                //float sample = sin(phase[b]) * (1.0 - (0.5 * abs(z0[b] - previous_out[b])));
+                float sample = goetzel(32.0, z0[b], z1[b], z2[b]);
+                */
+                buffer[a * out_channels + b] = sample;
                 //fix
+                /*
                 for(unsigned int c = out_frames - 1; c > 0; c--){
                     previous_out[c] = previous_out[c - 1];
                 };
-                buffer[a * out_channels + b] = sample;
                 previous_out[b] = sample;
+                */
             }
         }       
     }      
