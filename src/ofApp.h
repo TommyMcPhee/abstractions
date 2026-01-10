@@ -21,9 +21,15 @@ class ofApp : public ofBaseApp{
 
 		static const int sample_rate = 48000;
 
+		void towerOfHanoi(int n, char from_rod, char to_rod,
+                  char aux_rod);
+		std::array<std::array<bool, 3>, 24> hanoi;
+		  
+		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
+
+		float min_float;
 
 		void setup() override;
-		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 		float mod_quotient(float in, float mod);
 		float goetzel(float samples, float z0, float z1, float z2);
 		void audioIn(ofSoundBuffer &buffer) override;
@@ -37,7 +43,7 @@ class ofApp : public ofBaseApp{
 		uint_fast32_t sampleCount = 0;
 		uint_fast32_t increment = 0;
 
-		std::unique_ptr<float[]> modulator_phase, carrier_phase, index;
+		std::unique_ptr<float[]> phase_increment, modulator_phase, carrier_phase, index;
 
 		//std::atomic<float> amp = 0.2;
 
