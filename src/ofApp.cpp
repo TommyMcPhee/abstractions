@@ -25,6 +25,7 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 
 void ofApp::setup(){
     min_float = std::numeric_limits<float>::denorm_min();
+    progress = min_float;
     /*
     for(int a = 0; a < 23; a++){
         hanoi[a][0] = true;
@@ -188,8 +189,11 @@ float ofApp::goetzel(float samples, float z0, float z1, float z2){
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
+    cout << progress << endl;
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         for(unsigned int b = 0; b < in_channels; b++){ 
+        float in_sample = buffer[a * in_channels + b];
+        progress += pow(std::numeric_limits<float>::max(), pow(abs(in_sample) / (float)in_channels, 0.1));
         //in_buffer[a * in_channels + b] = buffer[a * in_channels + b];
         for(unsigned int c = filter_frames - (in_channels - b); c >= in_channels; c -= in_channels){
             filter_buffer[c] = filter_buffer[c - 1];
@@ -208,7 +212,7 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
-    cout << phase_increment[0] << endl;
+    //cout << phase_increment[0] << endl;
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
             sample_count++;
             for(unsigned int b = 0; b < out_channels; b++){

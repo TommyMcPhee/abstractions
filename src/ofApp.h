@@ -48,5 +48,7 @@ class ofApp : public ofBaseApp{
 		//std::atomic<float> amp = 0.2;
 
 		std::unique_ptr<float[]> in_buffer, filter_buffer, previous_out;
+
+		std::atomic<float> progress;
 	
 };
