@@ -122,6 +122,10 @@ void ofApp::setup(){
     filter_frames = 3 * in_channels;
     cout << filter_frames << endl;
     out_frames = buffer_size * out_channels;
+    amplitude_roots = std::make_unique<float[]>(in_channels);
+    amplitude = std::make_unique<float[]>(in_channels);
+    dc = std::make_unique<float[]>(in_channels);
+    last_in_buffer = std::make_unique<float[]>(in_frames);
     in_buffer = std::make_unique<float[]>(in_frames);
     filter_buffer = std::make_unique<float[]>(filter_frames);
     previous_out = std::make_unique<float[]>(out_frames);
@@ -183,30 +187,35 @@ float ofApp::mod_quotient(float in, float mod){
 }
 
 float ofApp::goetzel(float samples, float z0, float z1, float z2){
+    //fix if using
     float r_constant = 2.0 * cos(TWO_PI / samples);
     float i_constant = sin(TWO_PI / samples);
     return pow(0.5 * r_constant * z1 + z2, 2) + pow(i_constant * z1, 2);
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
-    cout << progress << endl;
+    cout << amplitude[0] << endl;
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
+        sample_count++;
         for(unsigned int b = 0; b < in_channels; b++){ 
         float in_sample = buffer[a * in_channels + b];
-        progress += pow(std::numeric_limits<float>::max(), pow(abs(in_sample) / (float)in_channels, 0.1));
-        //in_buffer[a * in_channels + b] = buffer[a * in_channels + b];
+        float current_dc = dc[b];
+        dc[b] = current_dc + in_sample;
+        float dc_adjustment = dc[b] / sample_count;
+        float current_roots = amplitude_roots[b];
+        amplitude_roots[b] = current_roots + sqrt(abs(in_sample - dc_adjustment) * (1.0 - abs(dc_adjustment)));
+        amplitude[b] = pow(amplitude_roots[b] / sample_count, 2.0);
+        //amplitude[b] = sqrt(abs(in_sample - dc_adjustment) * (1.0 - abs(dc_adjustment)) * (sample_count - 1.0) + in_sample);
+        //progress += pow(std::numeric_limits<float>::max(), pow(abs(in_sample) / (float)in_channels, 0.1));
+        /*
         for(unsigned int c = filter_frames - (in_channels - b); c >= in_channels; c -= in_channels){
             filter_buffer[c] = filter_buffer[c - 1];
         }
         filter_buffer[b] = goetzel(32.0, buffer[a * in_channels + b], filter_buffer[in_channels + b], filter_buffer[in_channels * 2 + b]);
-        //in_buffer[a * in_channels + b] = filter_buffer[b];
-        in_buffer[a * in_channels + b] = buffer[a * in_channels + b];
-        /*
-        if(a < test_input_array.size()){
-            test_input_array[a] = input_buffer[a];
-        }
-            */
-        //inputBuffer[a * in_channels + b] = buffer[a * in_channels + b];
+        */
+        int index = a * in_channels + b;
+        last_in_buffer[index] = in_buffer[index];
+        in_buffer[index] = buffer[a * in_channels + b];
         }
     }
 }
@@ -214,22 +223,22 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 void ofApp::audioOut(ofSoundBuffer &buffer){
     //cout << phase_increment[0] << endl;
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
-            sample_count++;
             for(unsigned int b = 0; b < out_channels; b++){
+                /*
                 float phase_increment_copy = phase_increment[b];
                 phase_increment[b] += pow(phase_increment_copy, 1.0 - phase_increment_copy);
                 phase_increment[b] /= 1.71;
                 //phase_increment[b] += min_float;
                 //phase_increment[b] = fmod(phase_increment[b], 1.0);
                 //float phase_increment = (float)(sample_count % sample_rate) / (float)sample_rate;
-                modulator_phase[b] += phase_increment[b];
-                index[b] = 4.0;
-                carrier_phase[b] += phase_increment[b] * sin(modulator_phase[b]) * index[b];
-                float sin_amplitude = sin(carrier_phase[b]);
+                */
+                /*
                 float in_sample = in_buffer[a * in_channels + b];
+                              
+                
                 float min_term = MIN(abs(sin_amplitude), abs(in_sample));
                 float max_term = MAX(abs(sin_amplitude), abs(in_sample));
-                float sample = sin_amplitude;
+                */
                 /*
                 //float phase_increment = 1.0 - (0.5 * abs(in_sample - previous_out[b]));
                 float phase_increment = 0.0125;
@@ -237,7 +246,18 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 //float sample = sin(phase[b]) * (1.0 - (0.5 * abs(z0[b] - previous_out[b])));
                 float sample = goetzel(32.0, z0[b], z1[b], z2[b]);
                 */
-                buffer[a * out_channels + b] = sample;
+                phase_increment[b] = (amplitude[b]) / 2.0;
+                /*
+                modulator_phase[b] += phase_increment[b];
+                index[b] = 4.0;
+                carrier_phase[b] += phase_increment[b] * sin(modulator_phase[b]) * index[b];
+                */
+                carrier_phase[b] += phase_increment[b];
+                float sin_amplitude = sin(carrier_phase[b]) * pow(1.0 - phase_increment[b], 2.0);
+                int index = a * out_channels + b;
+                float last_in_sample = last_in_buffer[index];
+                float in_sample = in_buffer[index];
+                buffer[index] = last_in_sample * sin_amplitude;
                 //fix
                 /*
                 for(unsigned int c = out_frames - 1; c > 0; c--){

@@ -17,7 +17,7 @@ class ofApp : public ofBaseApp{
 			int message_port;
 		};
 		vector<message_destination> message_destinations;
-		unsigned int in_channels, out_channels, buffer_size, in_frames, filter_frames, out_frames, sample_count = 0;
+		unsigned int in_channels, out_channels, buffer_size, in_frames, filter_frames, out_frames;
 
 		static const int sample_rate = 48000;
 
@@ -27,7 +27,7 @@ class ofApp : public ofBaseApp{
 		  
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 
-		float min_float;
+		float min_float, sample_count = 0.0;
 
 		void setup() override;
 		float mod_quotient(float in, float mod);
@@ -39,15 +39,9 @@ class ofApp : public ofBaseApp{
 		ofSoundStreamSettings settings;
 		ofSoundStream stream;
 
-		
-		uint_fast32_t sampleCount = 0;
-		uint_fast32_t increment = 0;
-
 		std::unique_ptr<float[]> phase_increment, modulator_phase, carrier_phase, index;
 
-		//std::atomic<float> amp = 0.2;
-
-		std::unique_ptr<float[]> in_buffer, filter_buffer, previous_out;
+		std::unique_ptr<float[]> last_in_buffer, in_buffer, dc, amplitude_roots, amplitude, filter_buffer, previous_out;
 
 		std::atomic<float> progress;
 	
