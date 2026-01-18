@@ -200,17 +200,12 @@ float ofApp::goetzel(float samples, float z0, float z1, float z2){
     return pow(0.5 * r_constant * z1 + z2, 2) + pow(i_constant * z1, 2);
 }
 */
-void ofApp::crossing(){
-    cross_count++;
-    //update analysis
-    cross_sample_count = 0.0;
-}
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
     //cout << amplitude[0] << endl;
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
-        sample_count++;
-        cross_sample_count++;
+        sample_count += 1.0;
+        cross_sample_count += 1.0;
         progress += min_float;
         for(unsigned int b = 0; b < in_channels; b++){ 
         float in_sample = buffer[a * in_channels + b];
@@ -220,17 +215,25 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         float current_roots = amplitude_roots[b];
         amplitude_roots[b] = current_roots + sqrt(abs(in_sample - dc_adjustment) * (1.0 - abs(dc_adjustment)));
         amplitude[b] = pow(amplitude_roots[b] / sample_count, 2.0);
-        if(cross){
+        bool crossed = false;
+        if(cross[b]){
             if(in_sample < dc_adjustment){
-                crossing();
-                cross[a] = false;
+                crossed = true;
+                cross[b] = false;
             }
         }
         else{
             if(in_sample > dc_adjustment){
-                crossing();
-                cross[a] = true;
+                crossed = true;
+                cross[b] = true;
             }
+        }
+        if(crossed){
+            cross_count += 1.0;
+            pitch = sample_count / cross_count;
+            //pitch = fmod(pitch, (float)sample_rate);
+            //update analysis
+            cross_sample_count = 1.0;
         }
         int index = a * in_channels + b;
         last_in_buffer[index] = in_buffer[index];
@@ -240,7 +243,7 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
-    cout << progress << endl;
+    //cout << cross_sample_count << endl;
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
             float ring_sample = 1.0;
             for(unsigned int b = 0; b < in_channels; b++){
@@ -269,25 +272,24 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 //float sample = sin(phase[b]) * (1.0 - (0.5 * abs(z0[b] - previous_out[b])));
                 float sample = goetzel(32.0, z0[b], z1[b], z2[b]);
                 */
-                phase_increment[b] = (amplitude[b]) / 2.0;
-                /*
+                phase_increment[b] = 1.0 / pitch;
+                //phase_increment[b] = 0.003;
                 modulator_phase[b] += phase_increment[b];
-                index[b] = 4.0;
-                carrier_phase[b] += phase_increment[b] * sin(modulator_phase[b]) * index[b];
-                */
-                carrier_phase[b] += phase_increment[b];
-                float sin_amplitude = sin(carrier_phase[b]) * pow(1.0 - phase_increment[b], 2.0);
+                modulator_phase[b] = fmod(modulator_phase[b], std::numeric_limits<float>::max());
+                index[b] = pow(progress * (1.0 - phase_increment[b]) * (float)sample_rate, 0.5);
+                float modulator_amplitude = sin(modulator_phase[b]);
+                carrier_phase[b] += phase_increment[b] + phase_increment[b] * modulator_amplitude * index[b];
+                carrier_phase[b] = fmod(carrier_phase[b], std::numeric_limits<float>::max());
+                //carrier_phase[b] += phase_increment[b];
+                //float sin_amplitude = sin(carrier_phase[b]) * pow(1.0 - phase_increment[b], 2.0);
                 int index = a * out_channels + b;
                 float last_in_sample = last_in_buffer[index];
                 float in_sample = in_buffer[index];
-                buffer[index] = last_in_sample * sin_amplitude;
-                //fix
-                /*
-                for(unsigned int c = out_frames - 1; c > 0; c--){
-                    previous_out[c] = previous_out[c - 1];
-                };
-                previous_out[b] = sample;
-                */
+
+                float sin_amplitude = sin(carrier_phase[b]);
+
+                //buffer[index] = glm::mix(sin_amplitude, last_in_sample * sin_amplitude, pow(amplitude[b], progress));
+                buffer[index] = sin_amplitude * last_in_sample;
             }
         }       
     }      

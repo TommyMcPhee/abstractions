@@ -27,11 +27,12 @@ class ofApp : public ofBaseApp{
 		  
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 
-		float min_float, sample_count = 0.0, cross_sample_count = 0.0, cross_count = 0.0;
+		float min_float, pitch = 1.0;
 
 		void setup() override;
 		float mod_quotient(float in, float mod);
 		//float goetzel(float samples, float z0, float z1, float z2);
+		std::atomic<float> sample_count = 0.0, cross_sample_count = 0.0, cross_count = 0.0;
 		std::unique_ptr<float[]> dc, amplitude_roots, amplitude;
 		std::unique_ptr<bool[]> cross;
 		void crossing();
