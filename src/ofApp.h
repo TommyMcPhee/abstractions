@@ -27,11 +27,14 @@ class ofApp : public ofBaseApp{
 		  
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 
-		float min_float, sample_count = 0.0;
+		float min_float, sample_count = 0.0, cross_sample_count = 0.0, cross_count = 0.0;
 
 		void setup() override;
 		float mod_quotient(float in, float mod);
-		float goetzel(float samples, float z0, float z1, float z2);
+		//float goetzel(float samples, float z0, float z1, float z2);
+		std::unique_ptr<float[]> dc, amplitude_roots, amplitude;
+		std::unique_ptr<bool[]> cross;
+		void crossing();
 		void audioIn(ofSoundBuffer &buffer) override;
 		void audioOut(ofSoundBuffer &buffer) override;
 		void update() override;
@@ -41,7 +44,7 @@ class ofApp : public ofBaseApp{
 
 		std::unique_ptr<float[]> phase_increment, modulator_phase, carrier_phase, index;
 
-		std::unique_ptr<float[]> last_in_buffer, in_buffer, dc, amplitude_roots, amplitude, filter_buffer, previous_out;
+		std::unique_ptr<float[]> last_in_buffer, in_buffer, filter_buffer, previous_out;
 
 		std::atomic<float> progress;
 	

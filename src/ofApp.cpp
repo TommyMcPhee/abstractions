@@ -24,7 +24,7 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 }
 
 void ofApp::setup(){
-    min_float = std::numeric_limits<float>::denorm_min();
+    min_float = std::numeric_limits<float>::epsilon();
     progress = min_float;
     /*
     for(int a = 0; a < 23; a++){
@@ -50,6 +50,16 @@ void ofApp::setup(){
     if(proposed_in_channels > 0 && proposed_in_channels <= in_device.inputChannels){
         in_channels = proposed_in_channels;
         settings.numInputChannels = in_channels;
+        dc = std::make_unique<float[]>(in_channels);
+        amplitude_roots = std::make_unique<float[]>(in_channels);
+        amplitude = std::make_unique<float[]>(in_channels);
+        cross = std::make_unique<bool[]>(in_channels);
+        for(unsigned int a = 0; a < in_channels; a++){
+            dc[a] = 0.0;
+            amplitude_roots[a] = 0.0;
+            amplitude[a] = 0.0;
+            cross[a] = false;
+        }
     }
     else{
         cout << "Please enter a valid number of input channels:" << endl;
@@ -111,7 +121,7 @@ void ofApp::setup(){
     */
     settings.sampleRate = sample_rate;
 
-    for(int a = 0; a < buffer_sizes.size(); a++){
+    for(unsigned int a = 0; a < buffer_sizes.size(); a++){
         cout << "[" << a << "]  " << buffer_sizes[a];
     }
     cout << "Enter the index of the desired buffer size (chosen buffer size must be compatible with your input and output device)" << endl;
@@ -122,9 +132,6 @@ void ofApp::setup(){
     filter_frames = 3 * in_channels;
     cout << filter_frames << endl;
     out_frames = buffer_size * out_channels;
-    amplitude_roots = std::make_unique<float[]>(in_channels);
-    amplitude = std::make_unique<float[]>(in_channels);
-    dc = std::make_unique<float[]>(in_channels);
     last_in_buffer = std::make_unique<float[]>(in_frames);
     in_buffer = std::make_unique<float[]>(in_frames);
     filter_buffer = std::make_unique<float[]>(filter_frames);
@@ -185,18 +192,26 @@ void ofApp::setup(){
 float ofApp::mod_quotient(float in, float mod){
     return fmod(in, mod) / mod;
 }
-
+/*
 float ofApp::goetzel(float samples, float z0, float z1, float z2){
     //fix if using
     float r_constant = 2.0 * cos(TWO_PI / samples);
     float i_constant = sin(TWO_PI / samples);
     return pow(0.5 * r_constant * z1 + z2, 2) + pow(i_constant * z1, 2);
 }
+*/
+void ofApp::crossing(){
+    cross_count++;
+    //update analysis
+    cross_sample_count = 0.0;
+}
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
-    cout << amplitude[0] << endl;
+    //cout << amplitude[0] << endl;
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         sample_count++;
+        cross_sample_count++;
+        progress += min_float;
         for(unsigned int b = 0; b < in_channels; b++){ 
         float in_sample = buffer[a * in_channels + b];
         float current_dc = dc[b];
@@ -205,14 +220,18 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         float current_roots = amplitude_roots[b];
         amplitude_roots[b] = current_roots + sqrt(abs(in_sample - dc_adjustment) * (1.0 - abs(dc_adjustment)));
         amplitude[b] = pow(amplitude_roots[b] / sample_count, 2.0);
-        //amplitude[b] = sqrt(abs(in_sample - dc_adjustment) * (1.0 - abs(dc_adjustment)) * (sample_count - 1.0) + in_sample);
-        //progress += pow(std::numeric_limits<float>::max(), pow(abs(in_sample) / (float)in_channels, 0.1));
-        /*
-        for(unsigned int c = filter_frames - (in_channels - b); c >= in_channels; c -= in_channels){
-            filter_buffer[c] = filter_buffer[c - 1];
+        if(cross){
+            if(in_sample < dc_adjustment){
+                crossing();
+                cross[a] = false;
+            }
         }
-        filter_buffer[b] = goetzel(32.0, buffer[a * in_channels + b], filter_buffer[in_channels + b], filter_buffer[in_channels * 2 + b]);
-        */
+        else{
+            if(in_sample > dc_adjustment){
+                crossing();
+                cross[a] = true;
+            }
+        }
         int index = a * in_channels + b;
         last_in_buffer[index] = in_buffer[index];
         in_buffer[index] = buffer[a * in_channels + b];
@@ -221,8 +240,12 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
-    //cout << phase_increment[0] << endl;
+    cout << progress << endl;
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
+            float ring_sample = 1.0;
+            for(unsigned int b = 0; b < in_channels; b++){
+                ring_sample *= in_buffer[a * in_channels];
+            }
             for(unsigned int b = 0; b < out_channels; b++){
                 /*
                 float phase_increment_copy = phase_increment[b];
