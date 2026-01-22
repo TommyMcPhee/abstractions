@@ -249,6 +249,7 @@ float ofApp::mix(float inA, float inB, float mix){
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
+    cout << sin(modulator_phase[0]) << endl;
     //cout << cross_sample_count << endl;
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
             float ring_sample = 1.0;
@@ -278,8 +279,8 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 //float sample = sin(phase[b]) * (1.0 - (0.5 * abs(z0[b] - previous_out[b])));
                 float sample = goetzel(32.0, z0[b], z1[b], z2[b]);
                 */
-                phase_increment[b] = 0.1 / (pitch + min_float);
-                //phase_increment[b] = 0.003;
+                //phase_increment[b] = 0.1 / (pitch + min_float);
+                phase_increment[b] = 0.1;
                 modulator_phase[b] += phase_increment[b];
                 modulator_phase[b] = fmod(modulator_phase[b], std::numeric_limits<float>::max());
                 index[b] = pow(progress * (1.0 - phase_increment[b]) * (float)sample_rate, 0.5);
