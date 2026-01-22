@@ -1,7 +1,7 @@
 #include "ofApp.h"
 #include "ofSoundBaseTypes.h"
+#include <cmath>
 #include <ofxOsc.h>
-
 //--------------------------------------------------------------
 void ofApp::towerOfHanoi(int n, char from_rod, char to_rod,
                   char aux_rod)
@@ -54,6 +54,8 @@ void ofApp::setup(){
         amplitude_roots = std::make_unique<float[]>(in_channels);
         amplitude = std::make_unique<float[]>(in_channels);
         cross = std::make_unique<bool[]>(in_channels);
+        //reevaluate
+        sin_amplitude = std::make_unique<float[]>(in_channels);
         for(unsigned int a = 0; a < in_channels; a++){
             dc[a] = 0.0;
             amplitude_roots[a] = 0.0;
@@ -242,6 +244,10 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
     }
 }
 
+float ofApp::mix(float inA, float inB, float mix){
+    return (1.0 - mix) * inA + (inB * mix);
+}
+
 void ofApp::audioOut(ofSoundBuffer &buffer){
     //cout << cross_sample_count << endl;
         for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
@@ -272,24 +278,35 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 //float sample = sin(phase[b]) * (1.0 - (0.5 * abs(z0[b] - previous_out[b])));
                 float sample = goetzel(32.0, z0[b], z1[b], z2[b]);
                 */
-                phase_increment[b] = 1.0 / pitch;
+                phase_increment[b] = 0.1 / (pitch + min_float);
                 //phase_increment[b] = 0.003;
                 modulator_phase[b] += phase_increment[b];
                 modulator_phase[b] = fmod(modulator_phase[b], std::numeric_limits<float>::max());
                 index[b] = pow(progress * (1.0 - phase_increment[b]) * (float)sample_rate, 0.5);
                 float modulator_amplitude = sin(modulator_phase[b]);
-                carrier_phase[b] += phase_increment[b] + phase_increment[b] * modulator_amplitude * index[b];
-                carrier_phase[b] = fmod(carrier_phase[b], std::numeric_limits<float>::max());
+                //carrier_phase[b] += phase_increment[b] + phase_increment[b] * modulator_amplitude * index[b];
+                carrier_phase[b] += phase_increment[b];
+                carrier_phase[b] = fmod(carrier_phase[b], 1.0);
                 //carrier_phase[b] += phase_increment[b];
                 //float sin_amplitude = sin(carrier_phase[b]) * pow(1.0 - phase_increment[b], 2.0);
                 int index = a * out_channels + b;
                 float last_in_sample = last_in_buffer[index];
                 float in_sample = in_buffer[index];
-
-                float sin_amplitude = sin(carrier_phase[b]);
-
-                //buffer[index] = glm::mix(sin_amplitude, last_in_sample * sin_amplitude, pow(amplitude[b], progress));
-                buffer[index] = sin_amplitude * last_in_sample;
+                float last_sin_amplitude = sin_amplitude[b];
+                sin_amplitude[b] = sin(carrier_phase[b]);
+                //sin_amplitude[b] = mix(last_sin_amplitude, sin_amplitude[b], 0.9);
+                sin_amplitude[b] = sin(last_in_sample * HALF_PI * sin_amplitude[b] / (amplitude[b] + min_float));
+                //sin_amplitude[b] = mix(last_sin_amplitude, sin(HALF_PI * sin(carrier_phase[b]) * (1.0 / (amplitude[b] + min_float))), 0.1);
+                //buffer[index] = glm::mix(sin_amplitude, last_in_sample * sin_amplitude[b], pow(amplitude[b], progress));
+                float sample = ofClamp(last_in_sample * pow(1.0 / (amplitude[b] + min_float), 0.25), -1.0, 1.0);
+                for(int d = 0; d < 1; d++){
+                    //sample = glm::mix(sample * sin_amplitude, sin_amplitude, 0.5);
+                    //sample *= sin_amplitude;
+                }
+                //float test_filter = sin_amplitude[b];
+                //sample = sin(HALF_PI * test_filter * (1.0 / (amplitude[b] + min_float)));
+                //sample = sin(HALF_PI * test_filter * 40.0);
+                buffer[index] = sin_amplitude[b];
             }
         }       
     }      

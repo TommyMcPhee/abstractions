@@ -6,6 +6,8 @@
 #include "ofxOscReceiver.h"
 #include "ofxOscSender.h"
 
+#include <cmath>
+
 class ofApp : public ofBaseApp{
 
 	public:
@@ -33,10 +35,11 @@ class ofApp : public ofBaseApp{
 		float mod_quotient(float in, float mod);
 		//float goetzel(float samples, float z0, float z1, float z2);
 		std::atomic<float> sample_count = 0.0, cross_sample_count = 0.0, cross_count = 0.0;
-		std::unique_ptr<float[]> dc, amplitude_roots, amplitude;
+		std::unique_ptr<float[]> dc, amplitude_roots, amplitude, sin_amplitude;
 		std::unique_ptr<bool[]> cross;
 		void crossing();
 		void audioIn(ofSoundBuffer &buffer) override;
+		float mix(float inA, float inB, float mix);
 		void audioOut(ofSoundBuffer &buffer) override;
 		void update() override;
 		void exit() override;
