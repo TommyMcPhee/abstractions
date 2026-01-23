@@ -204,11 +204,11 @@ float ofApp::goetzel(float samples, float z0, float z1, float z2){
 */
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
-    //cout << amplitude[0] << endl;
+    cout << progress << endl;
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         sample_count += 1.0;
         cross_sample_count += 1.0;
-        progress += min_float;
+        progress += (min_float * amplitude[0]);
         for(unsigned int b = 0; b < in_channels; b++){ 
         float in_sample = buffer[a * in_channels + b];
         float current_dc = dc[b];
