@@ -208,9 +208,12 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         sample_count += 1.0;
         cross_sample_count += 1.0;
+        //revisit incrementation of progress, which will correlate with mix of output z0 samples (z1/z2 will be orthogonal function)
+        //progress should be incremented based on % of maximum change per channel per parameter times epsilon
+        //this may require a pow function to scale
         progress += (min_float * amplitude[0]);
         for(unsigned int b = 0; b < in_channels; b++){ 
-        float in_sample = buffer[a * in_channels + b];
+        float in_sample = last_in_buffer[a * in_channels + b];
         float current_dc = dc[b];
         dc[b] = current_dc + in_sample;
         float dc_adjustment = dc[b] / sample_count;
@@ -249,29 +252,21 @@ float ofApp::mix(float inA, float inB, float mix){
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
-    cout << sin(modulator_phase[0]) << endl;
-    //cout << cross_sample_count << endl;
-        for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
+    
+        for(int a = 0; a < buffer.getNumFrames(); a++){
             float ring_sample = 1.0;
-            for(unsigned int b = 0; b < in_channels; b++){
+            for(int b = 0; b < in_channels; b++){
                 ring_sample *= in_buffer[a * in_channels];
             }
-            for(unsigned int b = 0; b < out_channels; b++){
-                /*
-                float phase_increment_copy = phase_increment[b];
-                phase_increment[b] += pow(phase_increment_copy, 1.0 - phase_increment_copy);
-                phase_increment[b] /= 1.71;
-                //phase_increment[b] += min_float;
-                //phase_increment[b] = fmod(phase_increment[b], 1.0);
-                //float phase_increment = (float)(sample_count % sample_rate) / (float)sample_rate;
-                */
-                /*
-                float in_sample = in_buffer[a * in_channels + b];
-                              
-                
-                float min_term = MIN(abs(sin_amplitude), abs(in_sample));
-                float max_term = MAX(abs(sin_amplitude), abs(in_sample));
-                */
+            for(int b = 0; b < out_channels; b++){
+                //to determine how much each output channel corresponds to an input, subtract the input parameter one by one from the output parameters (0-1)
+                //multiply each by the target parameters and divide by the sum of the differences for an average
+                //ratio of local to OSC-derived influence should essentially be a byproduct of the rate of change
+                //take a measurement of how different per-channel values are to determine contrast for outputs (this can be a simple abs - 0.5 derived value)
+                //perhaps rather than "filtering" parametric changes, they can just change more the more progress goes!
+                for(int c = 0; c < in_channels; c++){
+
+                }
                 /*
                 //float phase_increment = 1.0 - (0.5 * abs(in_sample - previous_out[b]));
                 float phase_increment = 0.0125;
@@ -314,6 +309,9 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 
 //--------------------------------------------------------------
 void ofApp::update(){
+    //rate of sent OSC messages should be based on percentage of local change to possible maximum
+    //update average of all "external" parameters every update cycle
+    //this should literally be done with no discernement of the message address, as frequency should correlate directly with weighting (just keep a count of recieved messages)
     /*
     ofxOscMessage m;
     m.setAddress( "/test" );
