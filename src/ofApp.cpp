@@ -37,43 +37,59 @@ void ofApp::setup(){
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
-    unsigned int in_device_index, out_device_index, sample_rate_index, buffer_size_index;
+    unsigned int in_device_index, proposed_in_channels, out_device_index, proposed_out_channels, sample_rate_index, buffer_size_index;
     ofSoundDevice in_device, out_device;
     cout << stream.getDeviceList() << endl;
     cout << "Enter index of input device:" << endl;
     std::cin >> in_device_index;
     in_device = stream.getDeviceList()[in_device_index];
     settings.setInDevice(in_device);
-    in_channels = in_device.inputChannels;
-    dc = std::make_unique<float[]>(in_channels);
-    amplitude_roots = std::make_unique<float[]>(in_channels);
-    amplitude = std::make_unique<float[]>(in_channels);
-    cross = std::make_unique<bool[]>(in_channels);
-    //reevaluate
-    sin_amplitude = std::make_unique<float[]>(in_channels);
-    for(unsigned int a = 0; a < in_channels; a++){
-        dc[a] = 0.0;
-        amplitude_roots[a] = 0.0;
-        amplitude[a] = 0.0;
-        cross[a] = false;
+    cout << "Enter number of input channels:" << endl;
+    in_channels_loop:
+    std::cin >> proposed_in_channels;
+    if(proposed_in_channels > 0 && proposed_in_channels <= in_device.inputChannels){
+        in_channels = proposed_in_channels;
+        settings.numInputChannels = in_channels;
+        dc = std::make_unique<float[]>(in_channels);
+        amplitude_roots = std::make_unique<float[]>(in_channels);
+        amplitude = std::make_unique<float[]>(in_channels);
+        cross = std::make_unique<bool[]>(in_channels);
+        //reevaluate
+        sin_amplitude = std::make_unique<float[]>(in_channels);
+        for(unsigned int a = 0; a < in_channels; a++){
+            dc[a] = 0.0;
+            amplitude_roots[a] = 0.0;
+            amplitude[a] = 0.0;
+            cross[a] = false;
+        }
+    }
+    else{
+        cout << "Please enter a valid number of input channels:" << endl;
+        goto in_channels_loop;
     }
     cout << "Enter index of output device:" << endl;
     std::cin >> out_device_index;
     out_device = stream.getDeviceList()[out_device_index];
     settings.setOutDevice(stream.getDeviceList()[out_device_index]);
-    out_channels = out_device.outputChannels;
-    settings.numOutputChannels = out_channels;
-    phase_increment = std::make_unique<float[]>(out_channels);
-    modulator_phase = std::make_unique<float[]>(out_channels);
-    carrier_phase = std::make_unique<float[]>(out_channels);
-    index = std::make_unique<float[]>(out_channels);
-    for(int a = 0; a < out_channels; a++){
+    cout << "Enter number of output channels:" << endl;
+    out_channels_loop:
+    std::cin >> proposed_out_channels;
+    if(proposed_out_channels > 0 && proposed_out_channels <= out_device.outputChannels){
+        out_channels = proposed_out_channels;
+        settings.numOutputChannels = out_channels;
+        phase_increment = std::make_unique<float[]>(out_channels);
+        modulator_phase = std::make_unique<float[]>(out_channels);
+        carrier_phase = std::make_unique<float[]>(out_channels);
+        index = std::make_unique<float[]>(out_channels);
+        for(int a = 0; a < out_channels; a++){
         phase_increment[a] = min_float * 3.0;
+        }
+        //fix channels
     }
-    //fix channels
-
-    //this section of the program needs to be modified so that sample rate and buffer size are "advanced settings"
-
+    else{
+        cout << "Please enter a valid number of output channels:" << endl;
+        goto out_channels_loop;
+    }
     /*
     for(int a = 0; a < in_device.sampleRates.size(); a++){
     cout << in_device.sampleRates[a] << endl;
@@ -105,14 +121,14 @@ void ofApp::setup(){
     std::cin >> sample_rate_index;
     settings.sampleRate = shared_sample_rates[sample_rate_index];
     */
-    //settings.sampleRate = sample_rate;
+    settings.sampleRate = sample_rate;
 
     for(unsigned int a = 0; a < buffer_sizes.size(); a++){
         cout << "[" << a << "]  " << buffer_sizes[a];
     }
     cout << "Enter the index of the desired buffer size (chosen buffer size must be compatible with your input and output device)" << endl;
     std::cin >> buffer_size_index;
-    //buffer_size = buffer_sizes[buffer_size_index];
+    buffer_size = buffer_sizes[buffer_size_index];
     settings.bufferSize = buffer_sizes[buffer_size_index];
     in_frames = buffer_size * in_channels;
     filter_frames = 3 * in_channels;
@@ -291,8 +307,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 //float test_filter = sin_amplitude[b];
                 //sample = sin(HALF_PI * test_filter * (1.0 / (amplitude[b] + min_float)));
                 //sample = sin(HALF_PI * test_filter * 40.0);
-                //buffer[index] = sin_amplitude[b];
-                buffer[index] = ofRandomf();
+                buffer[index] = sin_amplitude[b];
             }
         }       
     }      
