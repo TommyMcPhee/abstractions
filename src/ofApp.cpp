@@ -16,7 +16,7 @@ void ofApp::setup(){
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
-    unsigned int in_device_index, proposed_in_channels, out_device_index, proposed_out_channels, sample_rate_index, buffer_size_index;
+    unsigned int in_device_index, out_device_index, buffer_size_index, sample_rate_index;
     ofSoundDevice in_device, out_device;
     cout << stream.getDeviceList() << endl;
     cout << "Enter index of input device:" << endl;
@@ -26,29 +26,61 @@ void ofApp::setup(){
     in_channels = in_device.inputChannels;
     settings.numInputChannels = in_channels;
     in_dc = std::make_unique<float[]>(in_channels);
-    in_amplitude_roots = std::make_unique<float[]>(in_channels);
+    in_amplitude_root = std::make_unique<float[]>(in_channels);
     in_amplitude = std::make_unique<float[]>(in_channels);
     in_cross = std::make_unique<bool[]>(in_channels);
+    in_cross_amplitude_root = std::make_unique<float[]>(in_channels);
+    in_cross_amplitude = std::make_unique<float[]>(in_channels);
+    in_cross_time = std::make_unique<float[]>(in_channels);
+    in_pitch = std::make_unique<float[]>(in_channels);
+
     //reevaluate
     sin_amplitude = std::make_unique<float[]>(in_channels);
-    for(unsigned int a = 0; a < in_channels; a++){
+    for(int a = 0; a < in_channels; a++){
         in_dc[a] = 0.0;
-        in_amplitude_roots[a] = 0.0;
+        in_amplitude_root[a] = 0.0;
         in_amplitude[a] = 0.0;
         in_cross[a] = false;
+        in_cross_count[a] = 0.0;
+        in_cross_time[a] = 0.0;
+        in_pitch[a] = 1.0;
     }
     cout << "Enter index of output device:" << endl;
+    if(!std::cin >> out_device_index || out_device_index >= stream.getDeviceList().size() ){
+
+    }
     std::cin >> out_device_index;
     out_device = stream.getDeviceList()[out_device_index];
     settings.setOutDevice(stream.getDeviceList()[out_device_index]);
     out_channels = out_device.outputChannels;
     settings.numOutputChannels = out_channels;
+
     phase_increment = std::make_unique<float[]>(out_channels);
     modulator_phase = std::make_unique<float[]>(out_channels);
     carrier_phase = std::make_unique<float[]>(out_channels);
     index = std::make_unique<float[]>(out_channels);
+
+    out_dc = std::make_unique<float[]>(out_channels);
+    out_amplitude_root = std::make_unique<float[]>(out_channels);
+    out_amplitude = std::make_unique<float[]>(out_channels);
+    out_cross = std::make_unique<bool[]>(out_channels);
+    out_cross_amplitude_root = std::make_unique<float[]>(out_channels);
+    out_cross_amplitude = std::make_unique<float[]>(out_channels);
+    out_cross_time = std::make_unique<float[]>(out_channels);
+    out_pitch = std::make_unique<float[]>(out_channels);
+    z2 = std::make_unique<float[]>(out_channels);
+    z1 = std::make_unique<float[]>(out_channels);
+
     for(int a = 0; a < out_channels; a++){
-        phase_increment[a] = min_float * 3.0;
+        out_dc[a] = 0.0;
+        out_amplitude_root[a] = 0.0;
+        out_amplitude[a] = 0.0;
+        out_cross[a] = false;
+        out_cross_count[a] = 0.0;
+        out_cross_time[a] = 0.0;
+        out_pitch[a] = 1.0;
+        z2[a] = 0.0;
+        z1[a] = 0.0;
     }
     /*
     for(int a = 0; a < in_device.sampleRates.size(); a++){
@@ -91,12 +123,10 @@ void ofApp::setup(){
     buffer_size = buffer_sizes[buffer_size_index];
     settings.bufferSize = buffer_sizes[buffer_size_index];
     in_frames = buffer_size * in_channels;
-    filter_frames = 3 * in_channels;
-    cout << filter_frames << endl;
     out_frames = buffer_size * out_channels;
     last_in_buffer = std::make_unique<float[]>(in_frames);
     in_buffer = std::make_unique<float[]>(in_frames);
-    filter_buffer = std::make_unique<float[]>(filter_frames);
+
     previous_out = std::make_unique<float[]>(out_frames);
     /*
     cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
@@ -155,21 +185,52 @@ float ofApp::mod_quotient(float in, float mod){
     return fmod(in, mod) / mod;
 }
 
+void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross, 
+        float &cross_amplitude_root, float &cross_amplitude, float &cross_count, float &cross_time, float &pitch){
+    dc += sample;
+    float dc_adjustment = dc / sample_count;
+    float amplitude_root_increment = sqrt(abs(sample - dc_adjustment)) * (1.0 - abs(dc_adjustment));
+    amplitude_root += amplitude_root_increment;
+    amplitude = pow(amplitude_root / sample_count, 2.0);
+    cross_amplitude_root += amplitude_root_increment;
+    cross_amplitude = pow(cross_amplitude_root / sample_count, 2.0);
+    bool crossed = false;
+        if(cross){
+            if(sample < dc_adjustment){
+                crossed = true;
+                cross = false;
+            }
+        }
+        else{
+            if(sample > dc_adjustment){
+                crossed = true;
+                cross = true;
+            }
+        }
+        if(crossed){
+            cross_count += 1.0;
+            cross_time = sample_count / cross_count;
+            pitch = mix(pitch, cross_amplitude * cross_time, 1.0 / cross_count);
+        }
+}
+
 void ofApp::audioIn(ofSoundBuffer &buffer){
-    cout << progress << endl;
+    cout << in_pitch[0] << endl;
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         sample_count += 1.0;
-        cross_sample_count += 1.0;
         //revisit incrementation of progress, which will correlate with mix of output z0 samples (z1/z2 will be orthogonal function)
         //progress should be incremented based on % of maximum change per channel per parameter times epsilon
         //this may require a pow function to scale
-        progress += (min_float * amplitude[0]);
-        for(unsigned int b = 0; b < in_channels; b++){ 
+
+        for(unsigned int b = 0; b < in_channels; b++){
+            analysis(last_in_buffer[b], in_dc[b], in_amplitude_root[b], in_amplitude[b], 
+                in_cross[b], in_cross_amplitude_root[b], in_cross_amplitude[b], in_cross_count[b], in_cross_time[b], in_pitch[b]);
+        /*
         float in_sample = last_in_buffer[a * in_channels + b];
-        float current_dc = dc[b];
-        dc[b] = current_dc + in_sample;
-        float dc_adjustment = dc[b] / sample_count;
-        float current_roots = amplitude_roots[b];
+        float current_dc = in_dc[b];
+        in_dc[b] = current_dc + in_sample;
+        float dc_adjustment = in_dc[b] / sample_count;
+        float current_roots = in_amplitude_roots[b];
         amplitude_roots[b] = current_roots + sqrt(abs(in_sample - dc_adjustment) * (1.0 - abs(dc_adjustment)));
         amplitude[b] = pow(amplitude_roots[b] / sample_count, 2.0);
         bool crossed = false;
@@ -192,6 +253,7 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
             //update analysis
             cross_sample_count = 1.0;
         }
+            */
         int index = a * in_channels + b;
         last_in_buffer[index] = in_buffer[index];
         in_buffer[index] = buffer[a * in_channels + b];
@@ -206,19 +268,13 @@ float ofApp::mix(float inA, float inB, float mix){
 void ofApp::audioOut(ofSoundBuffer &buffer){
     
         for(int a = 0; a < buffer.getNumFrames(); a++){
-            float ring_sample = 1.0;
-            for(int b = 0; b < in_channels; b++){
-                ring_sample *= in_buffer[a * in_channels];
-            }
             for(int b = 0; b < out_channels; b++){
                 //to determine how much each output channel corresponds to an input, subtract the input parameter one by one from the output parameters (0-1)
                 //multiply each by the target parameters and divide by the sum of the differences for an average
                 //ratio of local to OSC-derived influence should essentially be a byproduct of the rate of change
                 //take a measurement of how different per-channel values are to determine contrast for outputs (this can be a simple abs - 0.5 derived value)
                 //perhaps rather than "filtering" parametric changes, they can just change more the more progress goes!
-                for(int c = 0; c < in_channels; c++){
 
-                }
                 /*
                 //float phase_increment = 1.0 - (0.5 * abs(in_sample - previous_out[b]));
                 float phase_increment = 0.0125;
@@ -227,11 +283,11 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 float sample = goetzel(32.0, z0[b], z1[b], z2[b]);
                 */
                 //phase_increment[b] = 0.1 / (pitch + min_float);
-                phase_increment[b] = 0.1;
-                modulator_phase[b] += phase_increment[b];
+                modulator_phase[b] += 0.01;
                 modulator_phase[b] = fmod(modulator_phase[b], std::numeric_limits<float>::max());
                 index[b] = pow(progress * (1.0 - phase_increment[b]) * (float)sample_rate, 0.5);
                 float modulator_amplitude = sin(modulator_phase[b]);
+                phase_increment[b] = 0.1 + (0.1 * modulator_amplitude);
                 //carrier_phase[b] += phase_increment[b] + phase_increment[b] * modulator_amplitude * index[b];
                 carrier_phase[b] += phase_increment[b];
                 carrier_phase[b] = fmod(carrier_phase[b], 1.0);
@@ -243,18 +299,19 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 float last_sin_amplitude = sin_amplitude[b];
                 sin_amplitude[b] = sin(carrier_phase[b]);
                 //sin_amplitude[b] = mix(last_sin_amplitude, sin_amplitude[b], 0.9);
-                sin_amplitude[b] = sin(last_in_sample * HALF_PI * sin_amplitude[b] / (amplitude[b] + min_float));
+                //sin_amplitude[b] = sin(last_in_sample * HALF_PI * sin_amplitude[b] / (in_amplitude[b] + min_float));
                 //sin_amplitude[b] = mix(last_sin_amplitude, sin(HALF_PI * sin(carrier_phase[b]) * (1.0 / (amplitude[b] + min_float))), 0.1);
                 //buffer[index] = glm::mix(sin_amplitude, last_in_sample * sin_amplitude[b], pow(amplitude[b], progress));
-                float sample = ofClamp(last_in_sample * pow(1.0 / (amplitude[b] + min_float), 0.25), -1.0, 1.0);
-                for(int d = 0; d < 1; d++){
-                    //sample = glm::mix(sample * sin_amplitude, sin_amplitude, 0.5);
-                    //sample *= sin_amplitude;
-                }
+                //float out_sample = ofClamp(last_in_sample * pow(1.0 / (in_amplitude[b] + min_float), 0.25), -1.0, 1.0);
                 //float test_filter = sin_amplitude[b];
                 //sample = sin(HALF_PI * test_filter * (1.0 / (amplitude[b] + min_float)));
                 //sample = sin(HALF_PI * test_filter * 40.0);
-                buffer[index] = sin_amplitude[b];
+                float out_sample = mix(sin_amplitude[b], previous_out[b], pow(0.5 * abs(sin_amplitude[b] - previous_out[b]), 0.05));
+                buffer[index] = (out_sample - sin_amplitude[b]) * 0.5;
+                z2[b] = z1[b];
+                z1[b] = out_sample;
+                analysis(out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], 
+                    out_cross[b], out_cross_amplitude_root[b], out_cross_amplitude[b], out_cross_count[b], out_cross_time[b], out_pitch[b]);
             }
         }       
     }      
