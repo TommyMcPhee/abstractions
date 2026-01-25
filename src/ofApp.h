@@ -25,7 +25,7 @@ class ofApp : public ofBaseApp{
 		  
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 
-		float min_float, pitch = 1.0;
+		float epsilon_float, min_float;
 
 		void setup() override;
 		float mod_quotient(float in, float mod);
