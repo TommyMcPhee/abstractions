@@ -3,21 +3,6 @@
 #include <cmath>
 #include <ofxOsc.h>
 //--------------------------------------------------------------
-void ofApp::towerOfHanoi(int n, char from_rod, char to_rod,
-                  char aux_rod)
-{
-    if (n == 0) {
-        return;
-    }
-    towerOfHanoi(n, from_rod, aux_rod, to_rod);
-    /*
-    cout << "Move disk " << n << " from rod " << from_rod
-         << " to rod " << to_rod << endl;
-         */
-    hanoi[n][from_rod] = false;
-    hanoi[n][to_rod] = true;
-    towerOfHanoi(n, aux_rod, to_rod, from_rod);
-}
 
 void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 
@@ -25,15 +10,9 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 
 void ofApp::setup(){
     min_float = std::numeric_limits<float>::epsilon();
+    //should progress be min_float or 0.0?
     progress = min_float;
-    /*
-    for(int a = 0; a < 23; a++){
-        hanoi[a][0] = true;
-        hanoi[a][1] = false;
-        hanoi[a][2] = false;
-    }
-    towerOfHanoi(5, 'A', 'B', 'C');
-    */
+
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
@@ -44,51 +23,32 @@ void ofApp::setup(){
     std::cin >> in_device_index;
     in_device = stream.getDeviceList()[in_device_index];
     settings.setInDevice(in_device);
-    cout << "Enter number of input channels:" << endl;
-    in_channels_loop:
-    std::cin >> proposed_in_channels;
-    if(proposed_in_channels > 0 && proposed_in_channels <= in_device.inputChannels){
-        in_channels = proposed_in_channels;
-        settings.numInputChannels = in_channels;
-        dc = std::make_unique<float[]>(in_channels);
-        amplitude_roots = std::make_unique<float[]>(in_channels);
-        amplitude = std::make_unique<float[]>(in_channels);
-        cross = std::make_unique<bool[]>(in_channels);
-        //reevaluate
-        sin_amplitude = std::make_unique<float[]>(in_channels);
-        for(unsigned int a = 0; a < in_channels; a++){
-            dc[a] = 0.0;
-            amplitude_roots[a] = 0.0;
-            amplitude[a] = 0.0;
-            cross[a] = false;
-        }
-    }
-    else{
-        cout << "Please enter a valid number of input channels:" << endl;
-        goto in_channels_loop;
+    in_channels = in_device.inputChannels;
+    settings.numInputChannels = in_channels;
+    in_dc = std::make_unique<float[]>(in_channels);
+    in_amplitude_roots = std::make_unique<float[]>(in_channels);
+    in_amplitude = std::make_unique<float[]>(in_channels);
+    in_cross = std::make_unique<bool[]>(in_channels);
+    //reevaluate
+    sin_amplitude = std::make_unique<float[]>(in_channels);
+    for(unsigned int a = 0; a < in_channels; a++){
+        in_dc[a] = 0.0;
+        in_amplitude_roots[a] = 0.0;
+        in_amplitude[a] = 0.0;
+        in_cross[a] = false;
     }
     cout << "Enter index of output device:" << endl;
     std::cin >> out_device_index;
     out_device = stream.getDeviceList()[out_device_index];
     settings.setOutDevice(stream.getDeviceList()[out_device_index]);
-    cout << "Enter number of output channels:" << endl;
-    out_channels_loop:
-    std::cin >> proposed_out_channels;
-    if(proposed_out_channels > 0 && proposed_out_channels <= out_device.outputChannels){
-        out_channels = proposed_out_channels;
-        settings.numOutputChannels = out_channels;
-        phase_increment = std::make_unique<float[]>(out_channels);
-        modulator_phase = std::make_unique<float[]>(out_channels);
-        carrier_phase = std::make_unique<float[]>(out_channels);
-        index = std::make_unique<float[]>(out_channels);
-        for(int a = 0; a < out_channels; a++){
+    out_channels = out_device.outputChannels;
+    settings.numOutputChannels = out_channels;
+    phase_increment = std::make_unique<float[]>(out_channels);
+    modulator_phase = std::make_unique<float[]>(out_channels);
+    carrier_phase = std::make_unique<float[]>(out_channels);
+    index = std::make_unique<float[]>(out_channels);
+    for(int a = 0; a < out_channels; a++){
         phase_increment[a] = min_float * 3.0;
-        }
-        //fix channels
-    }
-    else{
-        cout << "Please enter a valid number of output channels:" << endl;
-        goto out_channels_loop;
     }
     /*
     for(int a = 0; a < in_device.sampleRates.size(); a++){
@@ -194,14 +154,6 @@ void ofApp::setup(){
 float ofApp::mod_quotient(float in, float mod){
     return fmod(in, mod) / mod;
 }
-/*
-float ofApp::goetzel(float samples, float z0, float z1, float z2){
-    //fix if using
-    float r_constant = 2.0 * cos(TWO_PI / samples);
-    float i_constant = sin(TWO_PI / samples);
-    return pow(0.5 * r_constant * z1 + z2, 2) + pow(i_constant * z1, 2);
-}
-*/
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
     cout << progress << endl;
