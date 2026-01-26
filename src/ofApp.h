@@ -58,5 +58,6 @@ class ofApp : public ofBaseApp{
 		//average change in progress- more change can corrospond to less amp/pitch fluctuation?
 		//this contradicts how the adjusted pitch will have more role as the piece progresses via orthogonal function to filter
 		//there should be a mechanism of differing outputs more when inputs are more similar, and vice versa
+		float last_sample = 0.0;
 	
 };

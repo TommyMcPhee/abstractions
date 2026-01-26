@@ -44,7 +44,7 @@ void ofApp::setup(){
         in_amplitude[a] = 0.0;
         in_cross[a] = false;
         in_cross_count[a] = 0.0;
-        in_cross_time[a] = 0.0;
+        in_cross_time[a] = 1.0;
         in_pitch[a] = 1.0;
     }
     cout << "Enter index of output device:" << endl;
@@ -81,10 +81,12 @@ void ofApp::setup(){
         out_amplitude[a] = 0.0;
         out_cross[a] = false;
         out_cross_count[a] = 0.0;
-        out_cross_time[a] = 0.0;
+        out_cross_time[a] = 1.0;
         out_pitch[a] = 1.0;
         z2[a] = 0.0;
         z1[a] = 0.0;
+
+        carrier_phase[a] = 0.0;
     }
     /*
     for(int a = 0; a < in_device.sampleRates.size(); a++){
@@ -196,8 +198,10 @@ void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &ampl
     float amplitude_root_increment = sqrt(abs(sample - dc_adjustment)) * (1.0 - abs(dc_adjustment));
     amplitude_root += amplitude_root_increment;
     amplitude = pow(amplitude_root / sample_count, 2.0);
+    /*
     cross_amplitude_root += amplitude_root_increment;
     cross_amplitude = pow(cross_amplitude_root / sample_count, 2.0);
+    */
     bool crossed = false;
         if(cross){
             if(sample < dc_adjustment){
@@ -214,22 +218,24 @@ void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &ampl
         if(crossed){
             cross_count += 1.0;
             cross_time = sample_count / cross_count;
-            pitch = mix(pitch, cross_time, cross_amplitude / (amplitude * cross_count + min_float));
+            pitch = mix(pitch, cross_time, pow(cross_amplitude / cross_count, 0.5));
         }
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
-    //cout << in_pitch[0] << endl;
+    
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         sample_count += 1.0;
         //revisit incrementation of progress, which will correlate with mix of output z0 samples (z1/z2 will be orthogonal function)
         //progress should be incremented based on % of maximum change per channel per parameter times epsilon
         //this may require a pow function to scale
-
+        
         for(unsigned int b = 0; b < in_channels; b++){
+        /*       
             analysis(last_in_buffer[b], in_dc[b], in_amplitude_root[b], in_amplitude[b], 
                 in_cross[b], in_cross_amplitude_root[b], in_cross_amplitude[b], in_cross_count[b], in_cross_time[b], in_pitch[b]);
-        /*
+            //}
+                */ /*
         float in_sample = last_in_buffer[a * in_channels + b];
         float current_dc = in_dc[b];
         in_dc[b] = current_dc + in_sample;
@@ -263,22 +269,20 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         in_buffer[index] = buffer[a * in_channels + b];
         }
     }
+    
 }
 
 float ofApp::mix(float inA, float inB, float mix){
+    mix = ofClamp(mix, 0.0, 1.0);
     return (1.0 - mix) * inA + (inB * mix);
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
     
-        for(int a = 0; a < buffer.getNumFrames(); a++){
-            float ring_pitch = 1.0;
-            for(int b = 0; b < in_channels; b++){
-                ring_pitch += in_pitch[a];
-            }
-            ring_pitch /= in_channels;
-            //cout << ring_pitch << endl;
+        for(int a = 0; a < buffer.getNumFrames(); a++){;
+            //cout << phase_increment[0] << endl;
             for(int b = 0; b < out_channels; b++){
+                //cout << progress << endl;
                 //to determine how much each output channel corresponds to an input, subtract the input parameter one by one from the output parameters (0-1)
                 //multiply each by the target parameters and divide by the sum of the differences for an average
                 //ratio of local to OSC-derived influence should essentially be a byproduct of the rate of change
@@ -300,7 +304,6 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 float modulator_amplitude = sin(modulator_phase[b]);
                 phase_increment[b] = 1.0 / (in_pitch[b] + 99);
                 //carrier_phase[b] += phase_increment[b] + phase_increment[b] * modulator_amplitude * index[b];
-                carrier_phase[b] += phase_increment[b];
                 carrier_phase[b] = fmod(carrier_phase[b], 1.0);
                 //carrier_phase[b] += phase_increment[b];
                 //float sin_amplitude = sin(carrier_phase[b]) * pow(1.0 - phase_increment[b], 2.0);
@@ -316,14 +319,21 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 //float out_sample = ofClamp(last_in_sample * pow(1.0 / (in_amplitude[b] + min_float), 0.25), -1.0, 1.0);
                 //float out_sample = mix(sin_amplitude[b], previous_out[b], pow(0.5 * abs(sin_amplitude[b] - previous_out[b]), 0.05));
                 */
-                phase_increment[b] = 1.0 / (in_pitch[b] + 9);
-                float out_sample = sin(carrier_phase[b]);
+                progress += epsilon_float;
+
                 int index = a * out_channels + b;
+
+                phase_increment[b] = last_in_buffer[index] + epsilon_float + 1.0 / out_pitch[b];
+                phase_increment[b] = fmod(phase_increment[b], 1.0);
+                carrier_phase[b] += phase_increment[b];
+                carrier_phase[b] = fmod(carrier_phase[b], 1.0);
+                float new_sample = sin(HALF_PI * mix(sin(carrier_phase[b]), last_in_buffer[index] * sin(carrier_phase[b]), progress) / (out_amplitude[b] + min_float));
+                float out_sample = mix(new_sample, z1[b], progress);
                 buffer[index] = out_sample;
                 z2[b] = z1[b];
                 z1[b] = out_sample;
-                //analysis(out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], 
-                    //out_cross[b], out_cross_amplitude_root[b], out_cross_amplitude[b], out_cross_count[b], out_cross_time[b], out_pitch[b]);
+                analysis(out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], 
+                    out_cross[b], out_cross_amplitude_root[b], out_cross_amplitude[b], out_cross_count[b], out_cross_time[b], out_pitch[b]);
             }
         }       
     }      
