@@ -25,6 +25,9 @@ void ofApp::setup(){
     in_device = stream.getDeviceList()[in_device_index];
     settings.setInDevice(in_device);
     in_channels = in_device.inputChannels;
+    if(in_channels < 1){
+        input = false;
+    }
     settings.numInputChannels = in_channels;
     in_dc = std::make_unique<float[]>(in_channels);
     in_amplitude_root = std::make_unique<float[]>(in_channels);
@@ -86,6 +89,8 @@ void ofApp::setup(){
         z2[a] = 0.0;
         z1[a] = 0.0;
 
+        //carrier_phase[a] = ofRandomf();
+        //carrier_phase[a] = epsilon_float * ofRandomf();
         carrier_phase[a] = 0.0;
     }
     /*
@@ -231,41 +236,13 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         //this may require a pow function to scale
         
         for(unsigned int b = 0; b < in_channels; b++){
-        /*       
-            analysis(last_in_buffer[b], in_dc[b], in_amplitude_root[b], in_amplitude[b], 
-                in_cross[b], in_cross_amplitude_root[b], in_cross_amplitude[b], in_cross_count[b], in_cross_time[b], in_pitch[b]);
-            //}
-                */ /*
-        float in_sample = last_in_buffer[a * in_channels + b];
-        float current_dc = in_dc[b];
-        in_dc[b] = current_dc + in_sample;
-        float dc_adjustment = in_dc[b] / sample_count;
-        float current_roots = in_amplitude_roots[b];
-        amplitude_roots[b] = current_roots + sqrt(abs(in_sample - dc_adjustment) * (1.0 - abs(dc_adjustment)));
-        amplitude[b] = pow(amplitude_roots[b] / sample_count, 2.0);
-        bool crossed = false;
-        if(cross[b]){
-            if(in_sample < dc_adjustment){
-                crossed = true;
-                cross[b] = false;
-            }
-        }
-        else{
-            if(in_sample > dc_adjustment){
-                crossed = true;
-                cross[b] = true;
-            }
-        }
-        if(crossed){
-            cross_count += 1.0;
-            pitch = sample_count / cross_count;
-            //pitch = fmod(pitch, (float)sample_rate);
-            //update analysis
-            cross_sample_count = 1.0;
-        }
-            */
+            
+        analysis(in_buffer[b], in_dc[b], in_amplitude_root[b], in_amplitude[b], 
+            in_cross[b], in_cross_amplitude_root[b], in_cross_amplitude[b], in_cross_count[b], in_cross_time[b], in_pitch[b]);
+
         int index = a * in_channels + b;
-        last_in_buffer[index] = in_buffer[index];
+        //Delaying the input is unnecessary unless the input audio is directly referenced in synthesis
+        //last_in_buffer[index] = in_buffer[index];
         in_buffer[index] = buffer[a * in_channels + b];
         }
     }
@@ -280,7 +257,9 @@ float ofApp::mix(float inA, float inB, float mix){
 void ofApp::audioOut(ofSoundBuffer &buffer){
     
         for(int a = 0; a < buffer.getNumFrames(); a++){;
-            //cout << phase_increment[0] << endl;
+            if(!input){
+                sample_count += 1.0;
+            }
             for(int b = 0; b < out_channels; b++){
                 //cout << progress << endl;
                 //to determine how much each output channel corresponds to an input, subtract the input parameter one by one from the output parameters (0-1)
@@ -323,12 +302,12 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 
                 int index = a * out_channels + b;
 
-                phase_increment[b] = last_in_buffer[index] + epsilon_float + 1.0 / out_pitch[b];
+                phase_increment[b] = epsilon_float + 1.0 / out_cross_time[b];
                 phase_increment[b] = fmod(phase_increment[b], 1.0);
                 carrier_phase[b] += phase_increment[b];
                 carrier_phase[b] = fmod(carrier_phase[b], 1.0);
                 float new_sample = sin(HALF_PI * mix(sin(carrier_phase[b]), last_in_buffer[index] * sin(carrier_phase[b]), progress) / (out_amplitude[b] + min_float));
-                float out_sample = mix(new_sample, z1[b], progress);
+                float out_sample = mix(new_sample, mix(z1[b], z2[b], sin(out_pitch[b])), progress);
                 buffer[index] = out_sample;
                 z2[b] = z1[b];
                 z1[b] = out_sample;
@@ -356,6 +335,11 @@ void ofApp::update(){
     }
         */
 
+    //the update thread is where all averaging calculations (even local) should be taken
+    //if the device only has one channel, just send the value as the average and don't send a spread
+
+    //find a way to do this which is agnostic to total networked devices (for both computational complexity and algorithmic interest)
+        //furthermore, think about how this could be used to affect the form of the piece
 }
 
 //--------------------------------------------------------------

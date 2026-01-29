@@ -26,19 +26,23 @@ class ofApp : public ofBaseApp{
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 
 		float epsilon_float, min_float;
+		bool input = true;
 
 		void setup() override;
 		float mod_quotient(float in, float mod);
 		//float goetzel(float samples, float z0, float z1, float z2);
 		std::atomic<float> sample_count = 0.0, cross_sample_count = 0.0, cross_count = 0.0;
-		std::unique_ptr<float[]> in_dc, in_amplitude_root, in_amplitude, in_cross_amplitude_root, in_cross_amplitude, in_cross_count, in_cross_time, in_pitch,
-			z2, z1, out_dc, out_amplitude_root, out_amplitude, out_cross_amplitude_root, out_cross_amplitude, out_cross_count, out_cross_time, out_pitch, sin_amplitude;
-		std::unique_ptr<bool[]> in_cross, out_cross;
-		void crossing();
+		std::unique_ptr<float[]> in_dc, in_amplitude_root, in_amplitude, in_cross_amplitude_root, in_cross_amplitude, in_cross_count, in_cross_time, in_pitch; 
+		std::unique_ptr<bool[]> in_cross;
+		std::atomic<float> average_in_amplitude, spread_in_amplitude, average_in_cross, spread_in_cross, average_in_pitch, spread_in_pitch;
 		void analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross,
 			float &cross_amplitude_root, float &cross_amplitude, float &cross_count, float &cross_time, float &pitch);
 		void audioIn(ofSoundBuffer &buffer) override;
 		float mix(float inA, float inB, float mix);
+		std::unique_ptr<float[]> z2, z1, out_dc, out_amplitude_root, out_amplitude, out_cross_amplitude_root, out_cross_amplitude, out_cross_count, out_cross_time, out_pitch, 
+			sin_amplitude;
+		std::unique_ptr<bool[]> out_cross;
+		std::atomic<float> average_out_amplitude, spread_out_amplitude, average_out_cross, spread_out_cross, average_out_pitch, spread_out_pitch;
 		void audioOut(ofSoundBuffer &buffer) override;
 		void update() override;
 		void exit() override;
