@@ -17,7 +17,7 @@ void ofApp::setup(){
     cout << "Welcome to Abstractions!" << endl;
     settings.setOutListener(this);
     settings.setInListener(this);
-    unsigned int in_device_index, out_device_index, buffer_size_index, sample_rate_index;
+    unsigned int in_device_index, out_device_index, buffer_size_index;
     ofSoundDevice in_device, out_device;
     cout << stream.getDeviceList() << endl;
     cout << "Enter index of input device:" << endl;
@@ -189,7 +189,18 @@ void ofApp::setup(){
     std::cin >> node_port;
     sender.setup(node_ip, node_port);
     */
+    //static_assert(std::atomic<float>::is_always_lock_free);
+
     stream.setup(settings);
+}
+
+void ofApp::samplewise_updates(){
+    if(update_thread){
+            samples_per_update = 0.0;
+            update_thread = false;
+        }
+        sample_count += 1.0;
+        samples_per_update += 1.0;
 }
 
 float ofApp::mod_quotient(float in, float mod){
@@ -230,7 +241,7 @@ void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &ampl
 void ofApp::audioIn(ofSoundBuffer &buffer){
     
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
-        sample_count += 1.0;
+        samplewise_updates();
         //revisit incrementation of progress, which will correlate with mix of output z0 samples (z1/z2 will be orthogonal function)
         //progress should be incremented based on % of maximum change per channel per parameter times epsilon
         //this may require a pow function to scale
@@ -254,11 +265,15 @@ float ofApp::mix(float inA, float inB, float mix){
     return (1.0 - mix) * inA + (inB * mix);
 }
 
+float ofApp::unipolar_sin(float phase){
+    return sin(phase) * 0.5 + 0.5;
+}
+
 void ofApp::audioOut(ofSoundBuffer &buffer){
-    
+        //cout << progress << endl;
         for(int a = 0; a < buffer.getNumFrames(); a++){;
             if(!input){
-                sample_count += 1.0;
+                samplewise_updates();
             }
             for(int b = 0; b < out_channels; b++){
                 //cout << progress << endl;
@@ -298,7 +313,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 //float out_sample = ofClamp(last_in_sample * pow(1.0 / (in_amplitude[b] + min_float), 0.25), -1.0, 1.0);
                 //float out_sample = mix(sin_amplitude[b], previous_out[b], pow(0.5 * abs(sin_amplitude[b] - previous_out[b]), 0.05));
                 */
-                progress += epsilon_float;
+                progress += epsilon_float * 0.4;
 
                 int index = a * out_channels + b;
 
@@ -307,7 +322,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 carrier_phase[b] += phase_increment[b];
                 carrier_phase[b] = fmod(carrier_phase[b], 1.0);
                 float new_sample = sin(HALF_PI * mix(sin(carrier_phase[b]), last_in_buffer[index] * sin(carrier_phase[b]), progress) / (out_amplitude[b] + min_float));
-                float out_sample = mix(new_sample, mix(z1[b], z2[b], sin(out_pitch[b])), progress);
+                float out_sample = mix(new_sample, mix(z1[b], z2[b], unipolar_sin(out_pitch[b])), progress);
                 buffer[index] = out_sample;
                 z2[b] = z1[b];
                 z1[b] = out_sample;
@@ -319,6 +334,37 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 
 //--------------------------------------------------------------
 void ofApp::update(){
+    cout << samples_per_update.load() << endl;
+    update_thread = true;
+    update_count++;
+    
+    //this is really redundant, perhaps make an array??
+    //finish this out by subtracting squared from normal (the greater difference, the more spread across channels)
+
+    //if "significance > 1" { local updates }
+
+    float total_in_amplitude = 0.0;
+    float total_in_amplitude_squared = 0.0;
+    float total_in_cross = 0.0;
+    float total_in_cross_squared = 0.0;
+    float total_in_pitch = 0.0;
+    float total_in_pitch_squared = 0.0;
+    for(int a = 0; a < in_channels; a++){
+        total_in_amplitude += in_amplitude[a];
+        total_in_amplitude_squared += pow(in_amplitude[a], 2.0);
+        total_in_cross += in_cross[a];
+        total_in_cross_squared += pow(in_cross[a], 2.0);
+        total_in_pitch += in_pitch[a];
+        total_in_pitch_squared += pow(in_pitch[a], 2.0);
+    }
+    
+    
+    
+    //samples_per_update.store(0.0);
+    //cout << samples_per_update << endl;
+    //samples_per_update = 0.0;
+    //cout << last_sample_count.load() << sample_count.load() << endl;
+    //last_sample_count = sample_count.load();
     //rate of sent OSC messages should be based on percentage of local change to possible maximum
     //update average of all "external" parameters every update cycle
     //this should literally be done with no discernement of the message address, as frequency should correlate directly with weighting (just keep a count of recieved messages)
