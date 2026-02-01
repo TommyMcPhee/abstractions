@@ -29,7 +29,7 @@ class ofApp : public ofBaseApp{
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 
 		float epsilon_float, min_float;
-		bool input = true;
+		bool input = true, output = true;
 
 		void setup() override;
 		void samplewise_updates();

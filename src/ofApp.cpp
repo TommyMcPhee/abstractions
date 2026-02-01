@@ -24,9 +24,7 @@ void ofApp::setup(){
     in_device = stream.getDeviceList()[in_device_index];
     settings.setInDevice(in_device);
     in_channels = in_device.inputChannels;
-    if(in_channels < 1 || senders.size() < 1){
-        input = false;
-    }
+    if(in_channels > 0 && senders.size() > 0){
     settings.numInputChannels = in_channels;
     in_dc = std::make_unique<float[]>(in_channels);
     in_amplitude_root = std::make_unique<float[]>(in_channels);
@@ -42,6 +40,10 @@ void ofApp::setup(){
         in_cross_count[a] = 0.0;
         in_pitch[a] = 1.0;
     }
+    }
+    else{
+        input = false;
+    }
     cout << "Enter index of output device:" << endl;
     if(!std::cin >> out_device_index || out_device_index >= stream.getDeviceList().size() ){
 
@@ -50,6 +52,7 @@ void ofApp::setup(){
     out_device = stream.getDeviceList()[out_device_index];
     settings.setOutDevice(stream.getDeviceList()[out_device_index]);
     out_channels = out_device.outputChannels;
+    if(out_channels > 1){
     settings.numOutputChannels = out_channels;
     out_dc = std::make_unique<float[]>(out_channels);
     out_amplitude_root = std::make_unique<float[]>(out_channels);
@@ -164,7 +167,7 @@ void ofApp::setup(){
             }
         }
     //}
-    *//*
+    */
     cout << "Enter the receiver's IP address:" << endl;
     string receiver_ip;
     std::cin >> receiver_ip;
@@ -172,6 +175,7 @@ void ofApp::setup(){
     int receiver_port;
     std::cin >> receiver_port;
     receiver.setup(receiver_ip, receiver_port);
+    /*
     cout << "Enter the node's IP address:" << endl;
     string node_ip;
     std::cin >> node_ip;
@@ -181,7 +185,10 @@ void ofApp::setup(){
     sender.setup(node_ip, node_port);
     */
     //static_assert(std::atomic<float>::is_always_lock_free);
-
+    }
+    else{
+        output = false;
+    }
     stream.setup(settings);
 }
 
@@ -354,23 +361,23 @@ void ofApp::update(){
             pitch_update--;
         }
     }
-
-    if(receiver.hasWaitingMessages()){
-        ofxOscMessage received_message;
-		receiver.getNextMessage( &received_message );
-        string address = received_message.getAddress();
-        if(address == "amplitude"){
-            average_amplitude = received_message.getArgAsFloat(0);
-            spread_amplitude = received_message.getArgAsFloat(1);
-            amplitude_progress += epsilon_float / parameter_smoothing;
-        }
-        if(address == "pitch"){
-            average_pitch = received_message.getArgAsFloat(0);
-            spread_pitch = received_message.getArgAsFloat(1);
-            pitch_progress += epsilon_float / parameter_smoothing;
-        }
-        //receiver
+    if(output){
+        if(receiver.hasWaitingMessages()){
+            ofxOscMessage received_message;
+		    receiver.getNextMessage( &received_message );
+            string address = received_message.getAddress();
+            if(address == "amplitude"){
+                average_amplitude = received_message.getArgAsFloat(0);
+                spread_amplitude = received_message.getArgAsFloat(1);
+                amplitude_progress += epsilon_float / parameter_smoothing;
+            }
+            if(address == "pitch"){
+                average_pitch = received_message.getArgAsFloat(0);
+                spread_pitch = received_message.getArgAsFloat(1);
+                pitch_progress += epsilon_float / parameter_smoothing;
+            }
     }
+}
     //progress
     
     
