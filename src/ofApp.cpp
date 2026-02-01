@@ -22,17 +22,15 @@ void ofApp::setup(){
     epsilon_float = std::numeric_limits<float>::epsilon();
     //min_float = std::numeric_limits<float>::denorm_min();
 
-    cout << "Welcome to Abstractions!" << endl;
+    cout << "Welcome to Abstractions!" << "\n" << endl;
+    cout << "Enter any character for detailed information; Press ENTER without input to proceed with setup." << endl;
+    char user_input;
     
-    cout << "Enter any characters and press ENTER for detailed information." << endl;
-    cout << "Press ENTER without input to proceed with setup." << endl;
-
-    int test;
-    std::cin >> test;
-    cout << test << endl;
-
-    bool help = true;
-
+    help_loop:
+    bool help = false;
+    while(std::cin.get(user_input) && user_input != '\n'){
+        help = true;
+    }
     if(help){
         cout << "\n" << "Here is some general abstractions architecture and setup information; consult the README and source code for more detail." << endl;
         cout << "\n" << endl;
@@ -62,7 +60,7 @@ void ofApp::setup(){
         cout << "For nodes with inputs and outputs to respond to thier own inputs, the use of a local IP address and port is required." << endl;
         cout << "This implementation is to deliberately democratize the I/O procedures and optimize worst-case efficiency as much as possible." << endl;
         cout << "For more information, consult the README, source code, and research paper on this piece and topic. Press ENTER to proceed with setup!" << endl;
-
+        goto help_loop;
     }
 
     //This is where you make the menu to set up the senders
