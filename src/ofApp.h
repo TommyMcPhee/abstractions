@@ -27,7 +27,7 @@ class ofApp : public ofBaseApp{
 		//float min_float;
 		ofSoundStreamSettings settings;
 		int in_channels, out_channels;
-		bool input = true, output = true, playback = true;
+		bool input = true, output = true, playback = true, end_message;
 		void cin_refresh();
 		void osc_setup_warning();
 		void receiver_setup();

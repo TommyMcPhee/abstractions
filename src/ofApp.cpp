@@ -113,7 +113,7 @@ void ofApp::setup(){
     settings.setOutDevice(device_list[out_device_index]);
     out_channels = out_device.outputChannels;
     
-    if(out_channels > 1){
+    if(out_channels > 0){
         settings.numOutputChannels = out_channels;
         out_dc = std::make_unique<float[]>(out_channels);
         out_amplitude_root = std::make_unique<float[]>(out_channels);
@@ -164,8 +164,10 @@ void ofApp::setup(){
             cin_refresh();
         }
     }
+    in_device = device_list[in_device_index];
     settings.setInDevice(in_device);
     in_channels = in_device.inputChannels;
+    cout << in_channels << endl;
     if(in_channels > 0){
         settings.numInputChannels = in_channels;
         in_dc = std::make_unique<float[]>(in_channels);
@@ -419,47 +421,51 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 
 //--------------------------------------------------------------
 void ofApp::update(){
+
     update_thread = true;
     update_count++;
+
     
     //this is really redundant
 
     if(input){
-    float in_channels_float = (float)in_channels;
-    float average_in_amplitude = 0.0;
-    float average_in_pitch = 0.0;
-    for(int a = 0; a < in_channels; a++){
-        average_in_amplitude += in_amplitude[a];
-        average_in_pitch += in_pitch[a];
-    }
-    average_in_amplitude /= in_channels_float;
-    average_in_pitch /= in_channels_float;
-    float spread_in_amplitude = 0.0;
-    float spread_in_pitch = 0.0;
-    float delta_spread_amplitude = 0.25;
-    float delta_spread_pitch = 0.25;
-    if(in_channels > 1){
-        float average_in_amplitude_squared = 0.0;
-        float average_in_pitch_squared = 0.0;
+        float in_channels_float = (float)in_channels;
+        float average_in_amplitude = 0.0;
+        float average_in_pitch = 0.0;
         for(int a = 0; a < in_channels; a++){
-        average_in_amplitude_squared += pow(in_amplitude[a], 2.0);
-        average_in_pitch_squared += pow(in_pitch[a], 2.0);
+            average_in_amplitude += in_amplitude[a];
+            average_in_pitch += in_pitch[a];
         }
-        average_in_amplitude_squared /= in_channels_float;
-        average_in_pitch_squared /= in_channels_float;
-        spread_in_amplitude = sqrt(abs(average_in_amplitude - average_in_amplitude_squared));
-        delta_spread_amplitude = abs(spread_in_amplitude - last_spread_in_amplitude);
-        last_spread_in_amplitude = spread_in_amplitude;
-        spread_in_pitch = sqrt(abs(average_in_pitch - average_in_pitch_squared));
-        delta_spread_pitch = abs(spread_in_pitch - last_spread_in_pitch);
-        last_spread_in_pitch = spread_in_pitch;
-    }  
+        average_in_amplitude /= in_channels_float;
+        average_in_pitch /= in_channels_float;
+        float spread_in_amplitude = 0.0;
+        float spread_in_pitch = 0.0;
+        float delta_spread_amplitude = 0.25;
+        float delta_spread_pitch = 0.25;
+        if(in_channels > 1){
+            float average_in_amplitude_squared = 0.0;
+            float average_in_pitch_squared = 0.0;
+            for(int a = 0; a < in_channels; a++){
+            average_in_amplitude_squared += pow(in_amplitude[a], 2.0);
+            average_in_pitch_squared += pow(in_pitch[a], 2.0);
+            }
+            average_in_amplitude_squared /= in_channels_float;
+            average_in_pitch_squared /= in_channels_float;
+            spread_in_amplitude = sqrt(abs(average_in_amplitude - average_in_amplitude_squared));
+            delta_spread_amplitude = abs(spread_in_amplitude - last_spread_in_amplitude);
+            last_spread_in_amplitude = spread_in_amplitude;
+            spread_in_pitch = sqrt(abs(average_in_pitch - average_in_pitch_squared));
+            delta_spread_pitch = abs(spread_in_pitch - last_spread_in_pitch);
+            last_spread_in_pitch = spread_in_pitch;
+        } 
     
-    amplitude_update += abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude;
-    last_average_in_amplitude = average_in_amplitude;
+        //amplitude_update += abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude;
+        amplitude_update += 0.001;
+        last_average_in_amplitude = average_in_amplitude;
+        //cout << amplitude_update << endl;
         if(amplitude_update > 1.0){
             ofxOscMessage amplitude_message;
-            amplitude_message.setAddress("/pitch");
+            amplitude_message.setAddress("/amplitude");
             amplitude_message.addFloatArg(average_in_amplitude);
             amplitude_message.addFloatArg(spread_in_amplitude);
             for(int a = 0; a < senders.size(); a++){
@@ -467,9 +473,9 @@ void ofApp::update(){
             }
             amplitude_update--;
         }
-    
-    pitch_update += abs(average_in_pitch - last_average_in_pitch) * delta_spread_pitch;
-    last_average_in_pitch = average_in_pitch;
+        //pitch_update += abs(average_in_pitch - last_average_in_pitch) * delta_spread_pitch;
+        pitch_update += 0.001;
+        last_average_in_pitch = average_in_pitch;
         if(pitch_update > 1.0){
             ofxOscMessage pitch_message;
             pitch_message.setAddress("/pitch");
@@ -479,26 +485,31 @@ void ofApp::update(){
                 senders[a].sendMessage(pitch_message);
             }
             pitch_update--;
+            cout << pitch_update << endl;
         }
     }
 
     if(output){
-        if(receiver.hasWaitingMessages()){
-            ofxOscMessage received_message;
-		    receiver.getNextMessage( &received_message );
-            string address = received_message.getAddress();
-            if(address == "amplitude"){
-                average_amplitude = received_message.getArgAsFloat(0);
-                spread_amplitude = received_message.getArgAsFloat(1);
-                amplitude_progress += epsilon_float / parameter_smoothing;
-            }
-            if(address == "pitch"){
-                average_pitch = received_message.getArgAsFloat(0);
-                spread_pitch = received_message.getArgAsFloat(1);
-                pitch_progress += epsilon_float / parameter_smoothing;
+        if(playback){
+            if(receiver.hasWaitingMessages()){
+                ofxOscMessage received_message;
+                receiver.getNextMessage( received_message);
+                string address = received_message.getAddress();
+                if(address == "/amplitude"){
+                    average_amplitude = received_message.getArgAsFloat(0);
+                    spread_amplitude = received_message.getArgAsFloat(1);
+                    amplitude_progress += epsilon_float / parameter_smoothing;
+                    //cout << "amplitude" << average_amplitude << " " << spread_amplitude << " " << amplitude_progress << endl;
+                }
+                if(address == "/pitch"){
+                    average_pitch = received_message.getArgAsFloat(0);
+                    spread_pitch = received_message.getArgAsFloat(1);
+                    pitch_progress += epsilon_float / parameter_smoothing;
+                    //cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
+                }
             }
         }
-        if(!playback){
+        else if (end_message){
             cout << "These outputs have completed the piece!" << endl;
             if(input){
                 cout << "Input analysis and messaging will continue until the program is terminated." << endl;
@@ -508,6 +519,7 @@ void ofApp::update(){
                 ofSoundStreamClose();
                 ofExit();
             }
+            end_message = false;
         }
     }
     //progress
