@@ -28,7 +28,11 @@ class ofApp : public ofBaseApp{
 		ofSoundStreamSettings settings;
 		int in_channels, out_channels;
 		bool input = true, output = true, playback = true;
+		void cin_refresh();
+		void osc_setup_warning();
 		void receiver_setup();
+		void add_sender();
+		void unsigned_integer_warning();
 		ofSoundStream stream;
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 		void setup() override;

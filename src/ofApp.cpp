@@ -3,15 +3,46 @@
 #include <cmath>
 #include <ofxOsc.h>
 
+void ofApp::cin_refresh(){
+    std::cin.clear();
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+}
+
+void ofApp::osc_setup_warning(){
+    cout << "Please enter a string-castable IP address followed by an integer port, seperated by a space." << endl;
+    cin_refresh();
+}
+
 void ofApp::receiver_setup(){
-    //fix
-        cout << "Enter the receiver's IP address:" << endl;
+        cout << "Enter the receiver's IP address and port number (in that order, seperated by a space):" << endl;
         string receiver_ip;
-        std::cin >> receiver_ip;
-        cout << "Enter the receiver's port number:" << endl;
         int receiver_port;
-        std::cin >> receiver_port;
-        receiver.setup(receiver_ip, receiver_port);
+        if(std::cin >> receiver_ip >> receiver_port){
+            receiver.setup(receiver_ip, receiver_port);
+        }
+        else{
+            osc_setup_warning();
+        }
+}
+
+void ofApp::add_sender(){
+    string sender_ip;
+    int sender_port;
+    cout << "Enter the sender's IP address and port number (in that order, seperated by a space):" << endl;
+    if(std::cin >> sender_ip >> sender_port){
+        ofxOscSender new_sender;
+        new_sender.setup(sender_ip, sender_port);
+        senders.push_back(new_sender);
+    }
+    else{
+        osc_setup_warning();
+    }
+
+}
+
+void ofApp::unsigned_integer_warning(){
+    cout << "Please enter an unsigned integer." << endl;
+    cin_refresh();
 }
 
 void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
@@ -23,7 +54,7 @@ void ofApp::setup(){
     //min_float = std::numeric_limits<float>::denorm_min();
 
     cout << "Welcome to Abstractions!" << "\n" << endl;
-    cout << "Enter any character for detailed information; Press ENTER without input to proceed with setup." << endl;
+    cout << "Enter any character(s) for detailed information; Press ENTER without input to proceed with setup." << endl;
     char user_input;
     
     help_loop:
@@ -39,11 +70,12 @@ void ofApp::setup(){
         cout << "Setup will consist of establishing output and input devices, along with OSC IP addresses and ports for this node." << endl;
         cout << "Regardless of whether this node is responsible for audio input and/or output, a device will be *selected* for each function." << endl;
         cout << "Functionally, each node of Abstractions must have either input or output channels to contribute (hence, a sound device is required)." << endl;
-        cout << "Should a user decide to \"hack\" or expand upon the piece with externally-generated OSC messages, consult the source code for usage" << endl;
+        cout << "Should a user decide to \"hack\" or expand upon the piece with externally-generated OSC messages, consult the source code for usage." << endl;
         cout << "\n" << endl;
         cout << "To nullify output or input, simply select a compatible sound device with 0 available respective channels for that function." << endl;
         cout << "After this information is provided, you may manually adjust sample rates (pending API/device compatibility) and buffer sizes." << endl;
         cout << "If at any point, a setup error is made, simply restart the program (this is to keep the program streamlined and lightweight)." << endl;
+        cout << "Furthermore, the program only scanns audio devices once during setup. To add a newly available device, you must restart the program." << endl;
         cout << "\n" << endl;
         cout << "A single OSC receiver IP address and port is required unless a node is input-only and responsible for starting the piece." << endl;
         cout << "If input channels are > 0, you will be required to specify at least one IP address and port for OSC communication." << endl;
@@ -61,25 +93,24 @@ void ofApp::setup(){
         cout << "This implementation is to deliberately democratize the I/O procedures and optimize worst-case efficiency as much as possible." << endl;
         cout << "For more information, consult the README, source code, and research paper on this piece and topic. Press ENTER to proceed with setup!" << endl;
         goto help_loop;
-    }
-
-    //This is where you make the menu to set up the senders
-    
-    unsigned int in_device_index, out_device_index, buffer_size_index, sample_rate_index;
-    ofSoundDevice in_device, out_device;
-    cout << stream.getDeviceList() << endl;
-
-    //out_device_setup:
+    }  
+    unsigned int device_list_size, out_device_index, in_device_index, buffer_size_index, sample_rate_index;
+    auto device_list = stream.getDeviceList();
+    device_list_size = device_list.size();
+    ofSoundDevice out_device, in_device;
+    cout << device_list << endl;
     cout << "Enter index of output device:" << endl;
-    //std::cin >> out_device_index;
-    while(!(std::cin >> out_device_index) || out_device_index >= stream.getDeviceList().size() ){
-        cout << "Please enter a valid ouput device index within the listed range." << endl;
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        //goto out_device_setup;
+    while(true){
+        if(std::cin >> out_device_index && out_device_index < device_list_size ){
+            break;
+        }
+        else{
+            cout << "Please enter a valid ouput device index (unsigned integer) within the listed range." << endl;
+            cin_refresh();
+        }
     }
-    out_device = stream.getDeviceList()[out_device_index];
-    settings.setOutDevice(stream.getDeviceList()[out_device_index]);
+    out_device = device_list[out_device_index];
+    settings.setOutDevice(device_list[out_device_index]);
     out_channels = out_device.outputChannels;
     
     if(out_channels > 1){
@@ -95,10 +126,10 @@ void ofApp::setup(){
         phase = std::make_unique<float[]>(out_channels);
         last_amplitude = std::make_unique<float[]>(out_channels);
         amplitude = std::make_unique<float[]>(out_channels);
-    /*
-    z2 = std::make_unique<float[]>(out_channels);
-    z1 = std::make_unique<float[]>(out_channels);
-    */
+        /*
+        z2 = std::make_unique<float[]>(out_channels);
+        z1 = std::make_unique<float[]>(out_channels);
+        */
         for(int a = 0; a < out_channels; a++){
             out_dc[a] = 0.0;
             out_amplitude_root[a] = 0.0;
@@ -111,7 +142,6 @@ void ofApp::setup(){
             phase[a] = 0.0;
             last_amplitude[a] = 0.0;
             amplitude[a] = 0.0;
-
             /*
             z2[a] = 0.0;
             z1[a] = 0.0;
@@ -123,41 +153,54 @@ void ofApp::setup(){
         output = false;
     }
 
+    cout << '\n' << device_list << endl;
     cout << "Enter index of input device:" << endl;
-    std::cin >> in_device_index;
-    in_device = stream.getDeviceList()[in_device_index];
+    while(true){
+        if(std::cin >> in_device_index && in_device_index < device_list_size ){
+            break;
+        }
+        else{
+            cout << "Please enter a valid input device index (unsigned integer) within the listed range." << endl;
+            cin_refresh();
+        }
+    }
     settings.setInDevice(in_device);
     in_channels = in_device.inputChannels;
     if(in_channels > 0){
-    settings.numInputChannels = in_channels;
-    in_dc = std::make_unique<float[]>(in_channels);
-    in_amplitude_root = std::make_unique<float[]>(in_channels);
-    in_amplitude = std::make_unique<float[]>(in_channels);
-    in_cross = std::make_unique<bool[]>(in_channels);
-    in_cross_count = std::make_unique<float[]>(in_channels);
-    in_pitch = std::make_unique<float[]>(in_channels);
-        for(int a = 0; a < in_channels; a++){
-            in_dc[a] = 0.0;
-            in_amplitude_root[a] = 0.0;
-            in_amplitude[a] = 0.0;
-            in_cross[a] = false;
-            in_cross_count[a] = 0.0;
-            in_pitch[a] = 1.0;
-        }
+        settings.numInputChannels = in_channels;
+        in_dc = std::make_unique<float[]>(in_channels);
+        in_amplitude_root = std::make_unique<float[]>(in_channels);
+        in_amplitude = std::make_unique<float[]>(in_channels);
+        in_cross = std::make_unique<bool[]>(in_channels);
+        in_cross_count = std::make_unique<float[]>(in_channels);
+        in_pitch = std::make_unique<float[]>(in_channels);
+            for(int a = 0; a < in_channels; a++){
+                in_dc[a] = 0.0;
+                in_amplitude_root[a] = 0.0;
+                in_amplitude[a] = 0.0;
+                in_cross[a] = false;
+                in_cross_count[a] = 0.0;
+                in_pitch[a] = 1.0;
+            }
     }
     else{
         input = false;
-    }
-
-    //FIX
-    if(!input){
         additional_sender_loop:
-        cout << "Enter any character to add an OSC destination; press ENTER without input to skip." << endl;
-        while(std::cin.get(user_input) && user_input == '\n'){
-            goto complete_setup;
+        char user_inputb;
+        cout << "Enter any character(s) to add an OSC destination; press ENTER without input to skip." << endl;
+        while(true){
+            std::cin.ignore();
+            std::cin.get(user_inputb);
+            if(user_inputb == '\n'){
+                goto complete_setup;
+            }
+            else{
+                add_sender();
+                goto additional_sender_loop;
+            }
         }
     }
-    cout << "Enter the IP address and port number for the sender (seperated by a space):" << endl;
+    add_sender();
     goto additional_sender_loop;
     //this is where to set up senders
 
@@ -194,18 +237,34 @@ void ofApp::setup(){
     */
     complete_setup:
     //provide default options and validate inputs
-    for(unsigned int a = 0; a < buffer_sizes.size(); a++){
-        cout << "[" << a << "]  " << buffer_sizes[a];
+    unsigned int buffer_sizes_size = buffer_sizes.size();
+    for(unsigned int a = 0; a < buffer_sizes_size; a++){
+        cout << "[" << a << "]  " << buffer_sizes[a] << "\n";
     }
     cout << "Enter the index of the desired buffer size (chosen buffer size must be compatible with your API and device(s)):" << endl;
-    std::cin >> buffer_size_index;
-    settings.bufferSize = buffer_sizes[buffer_size_index];
-    for(unsigned int a = 0; a < buffer_sizes.size(); a++){
-        cout << "[" << a << "]  " << sample_rates[a];
+    cout << "Enter any integer greater than or equal to " << buffer_sizes_size << " to use your current default buffer size." << endl;
+    if(std::cin >> buffer_size_index){
+        if(buffer_size_index < buffer_sizes_size){
+            settings.bufferSize = buffer_sizes[buffer_size_index];
+        }
+    }
+    else{
+        unsigned_integer_warning();
+    }
+    unsigned int sample_rates_size = sample_rates.size();
+    for(unsigned int a = 0; a < sample_rates_size; a++){
+        cout << "[" << a << "]  " << sample_rates[a] << "\n";
     }
     cout << "Enter the index of the desired sample rate (chosen sample rate must be compatible with your API and device(s)):" << endl;
-    std::cin >> sample_rate_index;
-    settings.sampleRate = sample_rates[sample_rate_index];
+    cout << "Enter any integer greater than or equal to " << sample_rates_size << " to use your current default sample rate." << endl;
+    if(std::cin >> sample_rate_index){
+        if(sample_rate_index < sample_rates_size){
+            settings.sampleRate = sample_rates[sample_rate_index];
+        }
+    }
+    else{
+        unsigned_integer_warning();
+    }
     /*
     cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
     //if (std::cin.get() == '\n'){
@@ -253,6 +312,8 @@ void ofApp::setup(){
     */
     //static_assert(std::atomic<float>::is_always_lock_free);
     if(!output){
+        cout << "Since this node contains no outputs, you may use it to begin the piece without initializing an OSC receiver." << endl;
+        cout << "To initialize an OSC receiver (required if starting the piece from another node), enter any character(s) before pressing ENTER." << endl;
         receiver_setup();
     }
     settings.setOutListener(this);
