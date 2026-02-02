@@ -148,6 +148,17 @@ void ofApp::setup(){
     else{
         input = false;
     }
+
+    //FIX
+    if(!input){
+        additional_sender_loop:
+        cout << "Enter any character to add an OSC destination; press ENTER without input to skip." << endl;
+        while(std::cin.get(user_input) && user_input == '\n'){
+            goto complete_setup;
+        }
+    }
+    cout << "Enter the IP address and port number for the sender (seperated by a space):" << endl;
+    goto additional_sender_loop;
     //this is where to set up senders
 
     /*
@@ -181,6 +192,7 @@ void ofApp::setup(){
     std::cin >> sample_rate_index;
     settings.sampleRate = shared_sample_rates[sample_rate_index];
     */
+    complete_setup:
     //provide default options and validate inputs
     for(unsigned int a = 0; a < buffer_sizes.size(); a++){
         cout << "[" << a << "]  " << buffer_sizes[a];
