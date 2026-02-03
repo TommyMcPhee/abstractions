@@ -354,7 +354,7 @@ void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &ampl
         }
         if(crossed){
             cross_count += 1.0;
-            pitch = sample_count / cross_count;
+            pitch = cross_count / sample_count;
         }
 }
 
@@ -407,7 +407,8 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 float out_sample = sin(phase[b]) * amplitude[b]; 
                 
                 int index = a * out_channels + b;
-                buffer[index] = out_sample;
+                buffer[index] = ofRandomf();
+                //buffer[index] = out_sample;
                 /*
                 z2[b] = z1[b];
                 z1[b] = out_sample;
@@ -458,9 +459,8 @@ void ofApp::update(){
             delta_spread_pitch = abs(spread_in_pitch - last_spread_in_pitch);
             last_spread_in_pitch = spread_in_pitch;
         } 
-    
-        //amplitude_update += abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude;
         amplitude_update += 0.001;
+        //amplitude_update += abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude;
         last_average_in_amplitude = average_in_amplitude;
         //cout << amplitude_update << endl;
         if(amplitude_update > 1.0){
@@ -473,8 +473,8 @@ void ofApp::update(){
             }
             amplitude_update--;
         }
+        pitch_update += 0.01;
         //pitch_update += abs(average_in_pitch - last_average_in_pitch) * delta_spread_pitch;
-        pitch_update += 0.001;
         last_average_in_pitch = average_in_pitch;
         if(pitch_update > 1.0){
             ofxOscMessage pitch_message;
@@ -485,7 +485,6 @@ void ofApp::update(){
                 senders[a].sendMessage(pitch_message);
             }
             pitch_update--;
-            cout << pitch_update << endl;
         }
     }
 
@@ -499,13 +498,13 @@ void ofApp::update(){
                     average_amplitude = received_message.getArgAsFloat(0);
                     spread_amplitude = received_message.getArgAsFloat(1);
                     amplitude_progress += epsilon_float / parameter_smoothing;
-                    //cout << "amplitude" << average_amplitude << " " << spread_amplitude << " " << amplitude_progress << endl;
+                    cout << "amplitude" << average_amplitude << " " << spread_amplitude << " " << amplitude_progress << endl;
                 }
                 if(address == "/pitch"){
                     average_pitch = received_message.getArgAsFloat(0);
                     spread_pitch = received_message.getArgAsFloat(1);
                     pitch_progress += epsilon_float / parameter_smoothing;
-                    //cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
+                    cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
                 }
             }
         }
