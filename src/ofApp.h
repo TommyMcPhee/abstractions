@@ -27,7 +27,8 @@ class ofApp : public ofBaseApp{
 		//float min_float;
 		ofSoundStreamSettings settings;
 		int in_channels, out_channels;
-		bool input = true, output = true, playback = true, end_message;
+		float in_channels_float;
+		bool output = true, input = true, spread = true, playback = true, end_message;
 		void cin_refresh();
 		void osc_setup_warning();
 		void receiver_setup();
@@ -38,15 +39,14 @@ class ofApp : public ofBaseApp{
 		void setup() override;
 
 		std::atomic<bool> update_thread = false;
-		std::atomic<float> sample_count = 0.0, parameter_smoothing = 1.0, samples_per_update = 0.0;
+		std::atomic<float> parameter_smoothing = 1.0, sample_count = 0.0, samples_per_update = 0.0;
 		void samplewise_updates();
 		
 		std::unique_ptr<float[]> in_dc, in_amplitude_root, in_amplitude, in_cross_count, in_pitch;
-		std::atomic<float> average_in_amplitude, spread_in_amplitude, average_in_pitch, spread_in_pitch;
+		std::atomic<float> average_in_amplitude, spread_in_amplitude, average_in_pitch, spread_in_pitch, amplitude_update, pitch_update;
 		std::unique_ptr<bool[]> in_cross;
 		void analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross,
 			float &cross_count, float &pitch);
-
 		float last_average_in_amplitude = 0.5, last_average_in_pitch = 0.5, last_spread_in_amplitude = 0.5, last_spread_in_pitch = 0.5;
 		void audioIn(ofSoundBuffer &buffer) override;
 		float mix(float inA, float inB, float mix);
@@ -60,7 +60,7 @@ class ofApp : public ofBaseApp{
 		std::unique_ptr<bool[]> out_cross;
 		std::atomic<float> average_amplitude = 0.5, spread_amplitude = 0.5, average_pitch = 0.5, spread_pitch = 0.5;
 		void audioOut(ofSoundBuffer &buffer) override;
-		float update_count = 0.0, amplitude_update = 0.0, pitch_update = 0.0;
+		float update_count = 0.0;
 		void update() override;
 		void ofSoundStreamClose();
 		void exit() override;

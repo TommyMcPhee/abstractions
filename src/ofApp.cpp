@@ -17,18 +17,21 @@ void ofApp::receiver_setup(){
         cout << "Enter the receiver's IP address and port number (in that order, seperated by a space):" << endl;
         string receiver_ip;
         int receiver_port;
+        
         if(std::cin >> receiver_ip >> receiver_port){
             receiver.setup(receiver_ip, receiver_port);
         }
         else{
             osc_setup_warning();
         }
+
 }
 
 void ofApp::add_sender(){
     string sender_ip;
     int sender_port;
     cout << "Enter the sender's IP address and port number (in that order, seperated by a space):" << endl;
+    
     if(std::cin >> sender_ip >> sender_port){
         ofxOscSender new_sender;
         new_sender.setup(sender_ip, sender_port);
@@ -59,9 +62,11 @@ void ofApp::setup(){
     
     help_loop:
     bool help = false;
+    
     while(std::cin.get(user_input) && user_input != '\n'){
         help = true;
     }
+    
     if(help){
         cout << "\n" << "Here is some general abstractions architecture and setup information; consult the README and source code for more detail." << endl;
         cout << "\n" << endl;
@@ -94,13 +99,16 @@ void ofApp::setup(){
         cout << "For more information, consult the README, source code, and research paper on this piece and topic. Press ENTER to proceed with setup!" << endl;
         goto help_loop;
     }  
+    
     unsigned int device_list_size, out_device_index, in_device_index, buffer_size_index, sample_rate_index;
     auto device_list = stream.getDeviceList();
     device_list_size = device_list.size();
     ofSoundDevice out_device, in_device;
     cout << device_list << endl;
     cout << "Enter index of output device:" << endl;
+    
     while(true){
+        
         if(std::cin >> out_device_index && out_device_index < device_list_size ){
             break;
         }
@@ -108,7 +116,9 @@ void ofApp::setup(){
             cout << "Please enter a valid ouput device index (unsigned integer) within the listed range." << endl;
             cin_refresh();
         }
+
     }
+    
     out_device = device_list[out_device_index];
     settings.setOutDevice(device_list[out_device_index]);
     out_channels = out_device.outputChannels;
@@ -155,6 +165,7 @@ void ofApp::setup(){
 
     cout << '\n' << device_list << endl;
     cout << "Enter index of input device:" << endl;
+    
     while(true){
         if(std::cin >> in_device_index && in_device_index < device_list_size ){
             break;
@@ -164,11 +175,16 @@ void ofApp::setup(){
             cin_refresh();
         }
     }
+    
     in_device = device_list[in_device_index];
     settings.setInDevice(in_device);
     in_channels = in_device.inputChannels;
-    cout << in_channels << endl;
+    in_channels_float = (float)in_channels;
+    
     if(in_channels > 0){
+        if(in_channels == 1){
+            spread = false;
+        }
         settings.numInputChannels = in_channels;
         in_dc = std::make_unique<float[]>(in_channels);
         in_amplitude_root = std::make_unique<float[]>(in_channels);
@@ -176,14 +192,14 @@ void ofApp::setup(){
         in_cross = std::make_unique<bool[]>(in_channels);
         in_cross_count = std::make_unique<float[]>(in_channels);
         in_pitch = std::make_unique<float[]>(in_channels);
-            for(int a = 0; a < in_channels; a++){
-                in_dc[a] = 0.0;
-                in_amplitude_root[a] = 0.0;
-                in_amplitude[a] = 0.0;
-                in_cross[a] = false;
-                in_cross_count[a] = 0.0;
-                in_pitch[a] = 1.0;
-            }
+        for(int a = 0; a < in_channels; a++){
+            in_dc[a] = 0.0;
+            in_amplitude_root[a] = 0.0;
+            in_amplitude[a] = 0.0;
+            in_cross[a] = false;
+            in_cross_count[a] = 0.0;
+            in_pitch[a] = 1.0;
+        }
     }
     else{
         input = false;
@@ -202,6 +218,7 @@ void ofApp::setup(){
             }
         }
     }
+    
     add_sender();
     goto additional_sender_loop;
     //this is where to set up senders
@@ -245,6 +262,7 @@ void ofApp::setup(){
     }
     cout << "Enter the index of the desired buffer size (chosen buffer size must be compatible with your API and device(s)):" << endl;
     cout << "Enter any integer greater than or equal to " << buffer_sizes_size << " to use your current default buffer size." << endl;
+    
     if(std::cin >> buffer_size_index){
         if(buffer_size_index < buffer_sizes_size){
             settings.bufferSize = buffer_sizes[buffer_size_index];
@@ -253,16 +271,20 @@ void ofApp::setup(){
     else{
         unsigned_integer_warning();
     }
+    
     unsigned int sample_rates_size = sample_rates.size();
     for(unsigned int a = 0; a < sample_rates_size; a++){
         cout << "[" << a << "]  " << sample_rates[a] << "\n";
     }
     cout << "Enter the index of the desired sample rate (chosen sample rate must be compatible with your API and device(s)):" << endl;
     cout << "Enter any integer greater than or equal to " << sample_rates_size << " to use your current default sample rate." << endl;
+    
     if(std::cin >> sample_rate_index){
+        
         if(sample_rate_index < sample_rates_size){
             settings.sampleRate = sample_rates[sample_rate_index];
         }
+
     }
     else{
         unsigned_integer_warning();
@@ -318,55 +340,102 @@ void ofApp::setup(){
         cout << "To initialize an OSC receiver (required if starting the piece from another node), enter any character(s) before pressing ENTER." << endl;
         receiver_setup();
     }
+
     settings.setOutListener(this);
     settings.setInListener(this);
     stream.setup(settings);
 }
 
 void ofApp::samplewise_updates(){
+    
     if(update_thread){
-            parameter_smoothing = 1.0 / samples_per_update;
-            samples_per_update = 0.0;
-            update_thread = false;
-        }
-        sample_count += 1.0;
-        samples_per_update += 1.0;
+        parameter_smoothing = 1.0 / samples_per_update;
+        samples_per_update = 0.0;
+        update_thread = false;
+    }
+        
+    sample_count += 1.0;
+    samples_per_update += 1.0;
 }
 
 void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross, float &cross_count, float &pitch){
+    //ERROR: Function not reporting amplitude or pitch
+    
     dc += sample;
     float dc_adjustment = dc / sample_count;
     float amplitude_root_increment = sqrt(abs(sample - dc_adjustment)) * (1.0 - abs(dc_adjustment));
     amplitude_root += amplitude_root_increment;
     amplitude = pow(amplitude_root / sample_count, 2.0);
     bool crossed = false;
+        
         if(cross){
+            
             if(sample < dc_adjustment){
                 crossed = true;
-                cross = false;
             }
+
         }
         else{
+            
             if(sample > dc_adjustment){
                 crossed = true;
-                cross = true;
             }
+
         }
+        
         if(crossed){
+            cross = !cross;
             cross_count += 1.0;
             pitch = cross_count / sample_count;
         }
+
 }
 
 void ofApp::audioIn(ofSoundBuffer &buffer){
+    //cout << average_in_amplitude << " " << average_in_pitch << endl;
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
-        samplewise_updates();       
+        samplewise_updates();
+        float total_in_amplitude = 0.0;
+        float total_in_pitch = 0.0;      
         for(unsigned int b = 0; b < in_channels; b++){
-            /*
             analysis(buffer[a * in_channels + b], in_dc[b], in_amplitude_root[b], in_amplitude[b], 
                 in_cross[b], in_cross_count[b], in_pitch[b]);
-                */
+            total_in_amplitude += in_amplitude[b];
+            total_in_pitch += in_pitch[b];
         }
+        average_in_amplitude = total_in_amplitude / in_channels_float;
+        average_in_pitch = total_in_pitch / in_channels_float;
+        float spread_in_amplitude = 0.0;
+        float spread_in_pitch = 0.0;
+        float delta_spread_amplitude = 0.25;
+        float delta_spread_pitch = 0.25;
+        
+        if(spread){
+            // ERROR: Correct update incrementation fails
+
+            float average_in_amplitude_squared = 0.0;
+            float average_in_pitch_squared = 0.0;
+            for(int a = 0; a < in_channels; a++){
+                average_in_amplitude_squared += pow(in_amplitude[a], 2.0);
+                average_in_pitch_squared += pow(in_pitch[a], 2.0);
+            }
+            average_in_amplitude_squared /= in_channels_float;
+            average_in_pitch_squared /= in_channels_float;
+            spread_in_amplitude = sqrt(abs(average_in_amplitude - average_in_amplitude_squared));
+            delta_spread_amplitude = abs(spread_in_amplitude - last_spread_in_amplitude);
+            last_spread_in_amplitude = spread_in_amplitude;
+            spread_in_pitch = sqrt(abs(average_in_pitch - average_in_pitch_squared));
+            delta_spread_pitch = abs(spread_in_pitch - last_spread_in_pitch);
+            last_spread_in_pitch = spread_in_pitch;
+        } 
+        float current_amplitude_update = amplitude_update;
+        //amplitude_update = current_amplitude_update + 0.1;
+        amplitude_update = current_amplitude_update + abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude;
+        last_average_in_amplitude = average_in_amplitude;
+        float current_pitch_update = pitch_update; 
+        //pitch_update = current_pitch_update + 0.01;
+        pitch_update = current_pitch_update + abs(average_in_pitch - last_average_in_pitch) * delta_spread_pitch;
+        last_average_in_pitch = average_in_pitch;
     }
 }
 
@@ -381,10 +450,12 @@ float ofApp::unipolar_sin(float phase){
 
 float ofApp::calculate_ring(float progress){
     float ring_return = sin(HALF_PI * progress);
+    
     if(progress > 1.0){
         ring_return = 0.0;
         playback = false;
     }
+    
     return ring_return;
 }
 
@@ -393,12 +464,13 @@ float ofApp::calculate_value(float last_value, float average_in, float out, floa
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
-        //cout << progress << endl;
     if(playback){
         for(int a = 0; a < buffer.getNumFrames(); a++){;
+            
             if(!input){
                 samplewise_updates();
             }
+            
             for(int b = 0; b < out_channels; b++){
                 last_phase_increment[b] = phase_increment[b];
                 phase_increment[b] = calculate_value(last_phase_increment[b], average_pitch, out_pitch[b], spread_pitch, calculate_ring(pitch_progress));
@@ -406,8 +478,8 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 phase[b] = fmod(phase[b], 1.0);
                 last_amplitude[b] = amplitude[b];
                 amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, out_amplitude[b], spread_amplitude, calculate_ring(amplitude_progress));
-                //float out_sample = sin(phase[b]) * amplitude[b]; 
-                float out_sample = ofRandomf() * (1.0 - out_pitch[b]);
+                float out_sample = sin(phase[b]) * amplitude[b]; 
+                //float out_sample = ofRandomf();
                 int index = a * out_channels + b;
                 buffer[index] = out_sample;
                 //buffer[index] = out_sample;
@@ -424,70 +496,31 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 
 //--------------------------------------------------------------
 void ofApp::update(){
-
     update_thread = true;
     update_count++;
-
     
-    //this is really redundant
+    //cout << sample_count << endl;
 
-    if(input){
-        float in_channels_float = (float)in_channels;
-        float average_in_amplitude = 0.0;
-        float average_in_pitch = 0.0;
-        for(int a = 0; a < in_channels; a++){
-            average_in_amplitude += in_amplitude[a];
-            average_in_pitch += in_pitch[a];
+    if(amplitude_update > 1.0){
+        ofxOscMessage amplitude_message;
+        amplitude_message.setAddress("/amplitude");
+        amplitude_message.addFloatArg(average_in_amplitude);
+        amplitude_message.addFloatArg(spread_in_amplitude);
+        for(int a = 0; a < senders.size(); a++){
+            senders[a].sendMessage(amplitude_message);
         }
-        average_in_amplitude /= in_channels_float;
-        average_in_pitch /= in_channels_float;
-        float spread_in_amplitude = 0.0;
-        float spread_in_pitch = 0.0;
-        float delta_spread_amplitude = 0.25;
-        float delta_spread_pitch = 0.25;
-        if(in_channels > 1){
-            float average_in_amplitude_squared = 0.0;
-            float average_in_pitch_squared = 0.0;
-            for(int a = 0; a < in_channels; a++){
-            average_in_amplitude_squared += pow(in_amplitude[a], 2.0);
-            average_in_pitch_squared += pow(in_pitch[a], 2.0);
-            }
-            average_in_amplitude_squared /= in_channels_float;
-            average_in_pitch_squared /= in_channels_float;
-            spread_in_amplitude = sqrt(abs(average_in_amplitude - average_in_amplitude_squared));
-            delta_spread_amplitude = abs(spread_in_amplitude - last_spread_in_amplitude);
-            last_spread_in_amplitude = spread_in_amplitude;
-            spread_in_pitch = sqrt(abs(average_in_pitch - average_in_pitch_squared));
-            delta_spread_pitch = abs(spread_in_pitch - last_spread_in_pitch);
-            last_spread_in_pitch = spread_in_pitch;
-        } 
-        amplitude_update += 0.001;
-        //amplitude_update += abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude;
-        last_average_in_amplitude = average_in_amplitude;
-        //cout << amplitude_update << endl;
-        if(amplitude_update > 1.0){
-            ofxOscMessage amplitude_message;
-            amplitude_message.setAddress("/amplitude");
-            amplitude_message.addFloatArg(average_in_amplitude);
-            amplitude_message.addFloatArg(spread_in_amplitude);
-            for(int a = 0; a < senders.size(); a++){
-                senders[a].sendMessage(amplitude_message);
-            }
-            amplitude_update--;
+        amplitude_update -= 1.0;
+    }
+
+    if(pitch_update > 1.0){
+        ofxOscMessage pitch_message;
+        pitch_message.setAddress("/pitch");
+        pitch_message.addFloatArg(average_in_pitch);
+        pitch_message.addFloatArg(spread_in_pitch);
+        for(int a = 0; a < senders.size(); a++){
+            senders[a].sendMessage(pitch_message);
         }
-        pitch_update += 0.01;
-        //pitch_update += abs(average_in_pitch - last_average_in_pitch) * delta_spread_pitch;
-        last_average_in_pitch = average_in_pitch;
-        if(pitch_update > 1.0){
-            ofxOscMessage pitch_message;
-            pitch_message.setAddress("/pitch");
-            pitch_message.addFloatArg(average_in_pitch);
-            pitch_message.addFloatArg(spread_in_pitch);
-            for(int a = 0; a < senders.size(); a++){
-                senders[a].sendMessage(pitch_message);
-            }
-            pitch_update--;
-        }
+        pitch_update -= 1.0;
     }
 
     if(output){
@@ -500,13 +533,13 @@ void ofApp::update(){
                     average_amplitude = received_message.getArgAsFloat(0);
                     spread_amplitude = received_message.getArgAsFloat(1);
                     amplitude_progress += epsilon_float / parameter_smoothing;
-                    cout << "amplitude" << average_amplitude << " " << spread_amplitude << " " << amplitude_progress << endl;
+                    //cout << "amplitude" << average_amplitude << " " << spread_amplitude << " " << amplitude_progress << endl;
                 }
                 if(address == "/pitch"){
                     average_pitch = received_message.getArgAsFloat(0);
                     spread_pitch = received_message.getArgAsFloat(1);
                     pitch_progress += epsilon_float / parameter_smoothing;
-                    cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
+                    //cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
                 }
             }
         }
