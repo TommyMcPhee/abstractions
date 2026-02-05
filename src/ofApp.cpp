@@ -427,14 +427,15 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
             spread_in_pitch = sqrt(abs(average_in_pitch - average_in_pitch_squared));
             delta_spread_pitch = abs(spread_in_pitch - last_spread_in_pitch);
             last_spread_in_pitch = spread_in_pitch;
-        } 
+        }
+        float update_power = 1.0 / (1.0 + pow(sample_count.load(), sample_count * epsilon_float));
         float current_amplitude_update = amplitude_update;
         //amplitude_update = current_amplitude_update + 0.1;
-        amplitude_update = current_amplitude_update + abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude;
+        amplitude_update = current_amplitude_update + pow(abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude, update_power);
         last_average_in_amplitude = average_in_amplitude;
         float current_pitch_update = pitch_update; 
         //pitch_update = current_pitch_update + 0.01;
-        pitch_update = current_pitch_update + abs(average_in_pitch - last_average_in_pitch) * delta_spread_pitch;
+        pitch_update = current_pitch_update + pow(abs(average_in_pitch - last_average_in_pitch) * delta_spread_pitch, update_power);
         last_average_in_pitch = average_in_pitch;
     }
 }
@@ -478,8 +479,8 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 phase[b] = fmod(phase[b], 1.0);
                 last_amplitude[b] = amplitude[b];
                 amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, out_amplitude[b], spread_amplitude, calculate_ring(amplitude_progress));
-                float out_sample = sin(phase[b]) * amplitude[b]; 
-                //float out_sample = ofRandomf();
+                //float out_sample = sin(phase[b]) * amplitude[b]; 
+                float out_sample = sin(phase[b]) * pow(1.0 - amplitude[b], 4.0);
                 int index = a * out_channels + b;
                 buffer[index] = out_sample;
                 //buffer[index] = out_sample;
@@ -498,8 +499,6 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 void ofApp::update(){
     update_thread = true;
     update_count++;
-    
-    //cout << sample_count << endl;
 
     if(amplitude_update > 1.0){
         ofxOscMessage amplitude_message;
@@ -532,14 +531,14 @@ void ofApp::update(){
                 if(address == "/amplitude"){
                     average_amplitude = received_message.getArgAsFloat(0);
                     spread_amplitude = received_message.getArgAsFloat(1);
-                    amplitude_progress += epsilon_float / parameter_smoothing;
-                    //cout << "amplitude" << average_amplitude << " " << spread_amplitude << " " << amplitude_progress << endl;
+                    amplitude_progress += epsilon_float;
+                    cout << "amplitude" << average_amplitude << " " << spread_amplitude << " " << amplitude_progress << endl;
                 }
                 if(address == "/pitch"){
                     average_pitch = received_message.getArgAsFloat(0);
                     spread_pitch = received_message.getArgAsFloat(1);
-                    pitch_progress += epsilon_float / parameter_smoothing;
-                    //cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
+                    pitch_progress += epsilon_float;
+                    cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
                 }
             }
         }
