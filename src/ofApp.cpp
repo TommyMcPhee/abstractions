@@ -136,6 +136,7 @@ void ofApp::setup(){
         phase = std::make_unique<float[]>(out_channels);
         last_amplitude = std::make_unique<float[]>(out_channels);
         amplitude = std::make_unique<float[]>(out_channels);
+        z1 = std::make_unique<float[]>(out_channels);
         /*
         z2 = std::make_unique<float[]>(out_channels);
         z1 = std::make_unique<float[]>(out_channels);
@@ -152,6 +153,7 @@ void ofApp::setup(){
             phase[a] = 0.0;
             last_amplitude[a] = 0.0;
             amplitude[a] = 0.0;
+            z1[a] = 0.0;
             /*
             z2[a] = 0.0;
             z1[a] = 0.0;
@@ -461,7 +463,8 @@ float ofApp::calculate_ring(float progress){
 }
 
 float ofApp::calculate_value(float last_value, float average_in, float out, float spread_in, float ring){
-    return mix(last_value, mix(mix(average_in, out, spread_in), average_in * out, ring), parameter_smoothing);
+    //return mix(last_value, mix(mix(average_in, out, spread_in), average_in * out, ring), 0.95);
+    return mix(mix(last_value, average_in, ring), out, spread_in);
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
@@ -480,9 +483,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 last_amplitude[b] = amplitude[b];
                 amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, out_amplitude[b], spread_amplitude, calculate_ring(amplitude_progress));
                 //float out_sample = sin(phase[b]) * amplitude[b]; 
-                float out_sample = sin(phase[b]) * pow(1.0 - amplitude[b], 4.0);
+                float out_sample = mix(sin(phase[b]), z1[b], amplitude[b]);
                 int index = a * out_channels + b;
                 buffer[index] = out_sample;
+                z1[b] = out_sample;
                 //buffer[index] = out_sample;
                 /*
                 z2[b] = z1[b];
