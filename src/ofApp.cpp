@@ -223,41 +223,8 @@ void ofApp::setup(){
     
     add_sender();
     goto additional_sender_loop;
-    //this is where to set up senders
 
-    /*
-    for(int a = 0; a < in_device.sampleRates.size(); a++){
-    cout << in_device.sampleRates[a] << endl;
-    }
-    vector<int> shared_sample_rates;
-    for(int a = 0; a < in_device.sampleRates.size(); a++){
-        for(int b = 0; b < out_device.sampleRates.size(); b++)
-        if(in_device.sampleRates[a] == out_device.sampleRates[b]){
-            shared_sample_rates.push_back(in_device.sampleRates[a]);
-            cout << out_device.sampleRates[b] << endl;
-            break;
-        }
-    }
-    for(int a = 0; a < shared_sample_rates.size(); a++){
-        for(int b = a + 1; b < shared_sample_rates.size(); b++){
-            if(shared_sample_rates[a] == shared_sample_rates[b]){
-                shared_sample_rates[b] = 0;
-            }
-        }
-    }
-    shared_sample_rates.erase(std::find(shared_sample_rates.begin(), shared_sample_rates.end(), 0));
-    if(shared_sample_rates.size() == 0){
-        cout << "Please restart the program using new input and output devices, there are no shared sample rates between devices." << endl;
-    }
-    for(int a = 0; a < shared_sample_rates.size(); a++){
-        cout << "[" << a << "]  " << shared_sample_rates[a];
-    }
-    cout << "Enter the index of the desired sample rate from this list of shared sample rates between input and output devices:" << endl;
-    std::cin >> sample_rate_index;
-    settings.sampleRate = shared_sample_rates[sample_rate_index];
-    */
     complete_setup:
-    //provide default options and validate inputs
     unsigned int buffer_sizes_size = buffer_sizes.size();
     for(unsigned int a = 0; a < buffer_sizes_size; a++){
         cout << "[" << a << "]  " << buffer_sizes[a] << "\n";
@@ -291,52 +258,7 @@ void ofApp::setup(){
     else{
         unsigned_integer_warning();
     }
-    /*
-    cout << "Press any key for OSC settings, ENTER to begin the piece." << endl;
-    //if (std::cin.get() == '\n'){
-        //stream.setup(settings);
-    //}
-    //else{
-        cout << "Enter the reciever's network address (press ENTER for default ""localhost""):" << endl;
-        string host;
-        if(std::cin.get() == '\n'){
-            host = "localhost";
-        }
-        else{
-            std::cin >> host;
-        }
-        cout << "Enter the reciever's port number:" << endl;
-        int port;
-        std::cin >> port;
-        receiver.setup(host, port);
-        osc_sender_loop:
-        while(true){
-            cout << "Press any key to add a new node, ENTER to begin the piece." << endl;
-            if (std::cin.get() == '\n'){
-                stream.setup(settings);
-            }
-            else{
-                message_destination next_message_destination;
-                cout << "Enter the network address of the node:" << endl;
-                std::cin >> next_message_destination.message_address;
-                cout << "Enter the port of the node:" << endl;
-                std::cin >> next_message_destination.message_port;
-                goto osc_sender_loop;
-            }
-        }
-    //}
-    */
-    
-    /*
-    cout << "Enter the node's IP address:" << endl;
-    string node_ip;
-    std::cin >> node_ip;
-    cout << "Enter the node's port number:" << endl;
-    int node_port;
-    std::cin >> node_port;
-    sender.setup(node_ip, node_port);
-    */
-    //static_assert(std::atomic<float>::is_always_lock_free);
+
     if(!output){
         cout << "Since this node contains no outputs, you may use it to begin the piece without initializing an OSC receiver." << endl;
         cout << "To initialize an OSC receiver (required if starting the piece from another node), enter any character(s) before pressing ENTER." << endl;
@@ -360,9 +282,7 @@ void ofApp::samplewise_updates(){
     samples_per_update += 1.0;
 }
 
-void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross, float &cross_count, float &pitch){
-    //ERROR: Function not reporting amplitude or pitch
-    
+void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross, float &cross_count, float &pitch){  
     dc += sample;
     float dc_adjustment = dc / sample_count;
     float amplitude_root_increment = sqrt(abs(sample - dc_adjustment)) * (1.0 - abs(dc_adjustment));
@@ -455,8 +375,8 @@ float ofApp::calculate_ring(float progress){
     float ring_return = sin(HALF_PI * progress);
     
     if(progress > 1.0){
-        ring_return = 0.0;
-        playback = false;
+        ring_return = 1.0;
+        //playback = false;
     }
     
     return ring_return;
@@ -464,7 +384,7 @@ float ofApp::calculate_ring(float progress){
 
 float ofApp::calculate_value(float last_value, float average_in, float out, float spread_in, float ring){
     //return mix(last_value, mix(mix(average_in, out, spread_in), average_in * out, ring), 0.95);
-    return mix(mix(last_value, average_in, ring), out, spread_in);
+    return mix(mix(last_value, average_in, parameter_smoothing), out, ring);
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
@@ -482,8 +402,8 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 phase[b] = fmod(phase[b], 1.0);
                 last_amplitude[b] = amplitude[b];
                 amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, out_amplitude[b], spread_amplitude, calculate_ring(amplitude_progress));
-                //float out_sample = sin(phase[b]) * amplitude[b]; 
-                float out_sample = mix(sin(phase[b]), z1[b], amplitude[b]);
+                float out_sample = sin(phase[b]) * pow(1.0 - amplitude[b], 2.0); 
+                //float out_sample = mix(sin(phase[b]), z1[b], amplitude[b]);
                 int index = a * out_channels + b;
                 buffer[index] = out_sample;
                 z1[b] = out_sample;
@@ -497,13 +417,23 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             }
         }
     }       
-}      
+}
+
+float ofApp::progress_increment(float last_average, float average, float last_spread, float spread){
+    return pow(abs(last_average - average), 1.0 - abs(last_spread - spread));
+}
+/*
+void ofApp::receive_message(ofxOscMessage message, float &average, float &spread, float &progress, float &last_average, float &last_spread){
+    average = message.getArgAsFloat(0);
+    spread = message.getArgAsFloat(1);
+    progress += pow(abs(last_average - average), 1.0 - abs(last_spread - spread)) * samples_per_update * epsilon_float;
+    last_average = average;
+    last_spread = spread;
+}
+*/
 
 //--------------------------------------------------------------
 void ofApp::update(){
-    update_thread = true;
-    update_count++;
-
     if(amplitude_update > 1.0){
         ofxOscMessage amplitude_message;
         amplitude_message.setAddress("/amplitude");
@@ -529,19 +459,30 @@ void ofApp::update(){
     if(output){
         if(playback){
             if(receiver.hasWaitingMessages()){
+
+                //1. REVISIT FUNCTION STRUCTURE
+                //2. Consider a structure in which "last" is always set first throughout the program. Slightly cleaner and more efficient.
+
+                update_thread = true;
+                update_count++;
                 ofxOscMessage received_message;
                 receiver.getNextMessage( received_message);
                 string address = received_message.getAddress();
                 if(address == "/amplitude"){
+                    //receive_message(received_message, average_amplitude, spread_amplitude, amplitude_progress, last_average_amplitude, last_spread_amplitude);
                     average_amplitude = received_message.getArgAsFloat(0);
                     spread_amplitude = received_message.getArgAsFloat(1);
-                    amplitude_progress += epsilon_float;
+                    amplitude_progress += pow(progress_increment(last_average_amplitude, average_amplitude, last_spread_amplitude, spread_amplitude), 1.0 - amplitude_progress);
+                    last_average_amplitude = average_amplitude.load();
+                    last_spread_amplitude = spread_amplitude.load();
                     cout << "amplitude" << average_amplitude << " " << spread_amplitude << " " << amplitude_progress << endl;
                 }
                 if(address == "/pitch"){
                     average_pitch = received_message.getArgAsFloat(0);
                     spread_pitch = received_message.getArgAsFloat(1);
-                    pitch_progress += epsilon_float;
+                    pitch_progress += pow(progress_increment(last_average_pitch, average_pitch, last_spread_pitch, spread_pitch), 1.0 - pitch_progress);
+                    last_average_pitch = average_pitch.load();
+                    last_spread_pitch = spread_pitch.load();
                     cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
                 }
             }

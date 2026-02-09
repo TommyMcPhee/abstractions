@@ -58,9 +58,12 @@ class ofApp : public ofBaseApp{
 		std::unique_ptr<float[]> z2, z1, out_dc, out_amplitude_root, out_amplitude, out_cross_count, out_pitch, 
 			last_phase_increment, phase_increment, phase, last_amplitude, amplitude;
 		std::unique_ptr<bool[]> out_cross;
-		std::atomic<float> average_amplitude = 0.5, spread_amplitude = 0.5, average_pitch = 0.5, spread_pitch = 0.5;
+		std::atomic<float> average_amplitude = 0.5, spread_amplitude = 0.5, last_average_amplitude = 0.5, last_spread_amplitude = 0.5, 
+			average_pitch = 0.5, spread_pitch = 0.5, last_average_pitch = 0.5, last_spread_pitch = 0.5;
 		void audioOut(ofSoundBuffer &buffer) override;
 		float update_count = 0.0;
+		float progress_increment(float last_average, float average, float last_spread, float spread);
+		//void receive_message(ofxOscMessage message, float &average, float &spread, float &progress, float &last_average, float &last_spread)
 		void update() override;
 		void ofSoundStreamClose();
 		void exit() override;
