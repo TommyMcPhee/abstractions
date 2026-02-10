@@ -70,6 +70,8 @@ class ofApp : public ofBaseApp{
 
 		std::atomic<float> pitch_progress, amplitude_progress;
 
+		float progress;
+
 		//above average change (total) -> more low pass filtration for parameters and vice versa?
 		//consider segregating local vs OSC variables by weighting OSC more heavily when local is unstable
 

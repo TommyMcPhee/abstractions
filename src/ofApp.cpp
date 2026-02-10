@@ -137,10 +137,7 @@ void ofApp::setup(){
         last_amplitude = std::make_unique<float[]>(out_channels);
         amplitude = std::make_unique<float[]>(out_channels);
         z1 = std::make_unique<float[]>(out_channels);
-        /*
         z2 = std::make_unique<float[]>(out_channels);
-        z1 = std::make_unique<float[]>(out_channels);
-        */
         for(int a = 0; a < out_channels; a++){
             out_dc[a] = 0.0;
             out_amplitude_root[a] = 0.0;
@@ -280,26 +277,31 @@ void ofApp::samplewise_updates(){
         
     sample_count += 1.0;
     samples_per_update += 1.0;
+
+    progress = unipolar_sin(sample_count * epsilon_float);
 }
 
 void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross, float &cross_count, float &pitch){  
     dc += sample;
     float dc_adjustment = dc / sample_count;
-    float amplitude_root_increment = sqrt(abs(sample - dc_adjustment)) * (1.0 - abs(dc_adjustment));
+    float inverse_dc_magnitude = 1.0 - abs(dc_adjustment);
+    float amplitude_root_increment = sqrt(abs(sample - dc_adjustment) * inverse_dc_magnitude);
     amplitude_root += amplitude_root_increment;
     amplitude = pow(amplitude_root / sample_count, 2.0);
     bool crossed = false;
         
         if(cross){
             
-            if(sample < dc_adjustment){
+            if(sample < dc_adjustment - (amplitude * inverse_dc_magnitude)){
+            //if(sample < 0.0){
                 crossed = true;
             }
 
         }
         else{
             
-            if(sample > dc_adjustment){
+            if(sample > dc_adjustment + (amplitude * inverse_dc_magnitude)){
+            //if(sample > 0.0){
                 crossed = true;
             }
 
@@ -309,6 +311,7 @@ void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &ampl
             cross = !cross;
             cross_count += 1.0;
             pitch = cross_count / sample_count;
+            //cout << pitch << endl;
         }
 
 }
@@ -323,10 +326,10 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
             analysis(buffer[a * in_channels + b], in_dc[b], in_amplitude_root[b], in_amplitude[b], 
                 in_cross[b], in_cross_count[b], in_pitch[b]);
             total_in_amplitude += in_amplitude[b];
-            total_in_pitch += in_pitch[b];
+            total_in_pitch += in_pitch[b] * in_amplitude[b];
         }
         average_in_amplitude = total_in_amplitude / in_channels_float;
-        average_in_pitch = total_in_pitch / in_channels_float;
+        average_in_pitch = total_in_pitch / total_in_amplitude;
         float spread_in_amplitude = 0.0;
         float spread_in_pitch = 0.0;
         float delta_spread_amplitude = 0.25;
@@ -350,14 +353,16 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
             delta_spread_pitch = abs(spread_in_pitch - last_spread_in_pitch);
             last_spread_in_pitch = spread_in_pitch;
         }
-        float update_power = 1.0 / (1.0 + pow(sample_count.load(), sample_count * epsilon_float));
+        float update_rate = sqrt(sample_count);
         float current_amplitude_update = amplitude_update;
+        amplitude_update = current_amplitude_update + epsilon_float + (abs(average_in_amplitude - last_average_in_amplitude) * update_rate);
         //amplitude_update = current_amplitude_update + 0.1;
-        amplitude_update = current_amplitude_update + pow(abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude, update_power);
+        //amplitude_update = current_amplitude_update + pow(abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude, update_power);
         last_average_in_amplitude = average_in_amplitude;
-        float current_pitch_update = pitch_update; 
-        //pitch_update = current_pitch_update + 0.01;
-        pitch_update = current_pitch_update + pow(abs(average_in_pitch - last_average_in_pitch) * delta_spread_pitch, update_power);
+        float current_pitch_update = pitch_update;
+        pitch_update = current_pitch_update + 0.00001; 
+        //pitch_update = current_pitch_update + epsilon_float + (abs(average_in_pitch - last_average_in_pitch) * update_rate);
+        //pitch_update = current_pitch_update + pow(abs(average_in_pitch - last_average_in_pitch), average_in_pitch) * update_rate;
         last_average_in_pitch = average_in_pitch;
     }
 }
@@ -384,7 +389,7 @@ float ofApp::calculate_ring(float progress){
 
 float ofApp::calculate_value(float last_value, float average_in, float out, float spread_in, float ring){
     //return mix(last_value, mix(mix(average_in, out, spread_in), average_in * out, ring), 0.95);
-    return mix(mix(last_value, average_in, parameter_smoothing), out, ring);
+    return mix(mix(last_value, average_in, parameter_smoothing * (1.0 - ring)), out, spread_in);
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
@@ -402,16 +407,13 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 phase[b] = fmod(phase[b], 1.0);
                 last_amplitude[b] = amplitude[b];
                 amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, out_amplitude[b], spread_amplitude, calculate_ring(amplitude_progress));
-                float out_sample = sin(phase[b]) * pow(1.0 - amplitude[b], 2.0); 
-                //float out_sample = mix(sin(phase[b]), z1[b], amplitude[b]);
+                //float new_sample = sin(phase[b]) * pow(1.0 - amplitude[b], 2.0); 
+                float new_sample = ofRandomf();
+                float out_sample = ((2.0 * progress * cos(TWO_PI * phase_increment[b]) * z1[b]) - (z2[b] * pow(progress, 2.0)) + new_sample * (1.0 - progress));
                 int index = a * out_channels + b;
                 buffer[index] = out_sample;
-                z1[b] = out_sample;
-                //buffer[index] = out_sample;
-                /*
                 z2[b] = z1[b];
                 z1[b] = out_sample;
-                */
                 analysis(out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], 
                     out_cross[b], out_cross_count[b], out_pitch[b]);
             }
@@ -420,7 +422,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 }
 
 float ofApp::progress_increment(float last_average, float average, float last_spread, float spread){
-    return pow(abs(last_average - average), 1.0 - abs(last_spread - spread));
+    return pow(abs(last_average - average), 1.0 - abs(last_spread - spread)) * sample_count * epsilon_float;
 }
 /*
 void ofApp::receive_message(ofxOscMessage message, float &average, float &spread, float &progress, float &last_average, float &last_spread){
