@@ -54,7 +54,8 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 
 void ofApp::setup(){
     epsilon_float = std::numeric_limits<float>::epsilon();
-    //min_float = std::numeric_limits<float>::denorm_min();
+    min_float = std::numeric_limits<float>::denorm_min();
+    max_float = std::numeric_limits<float>::max();
 
     cout << "Welcome to Abstractions!" << "\n" << endl;
     cout << "Enter any character(s) for detailed information; Press ENTER without input to proceed with setup." << endl;
@@ -67,6 +68,8 @@ void ofApp::setup(){
         help = true;
     }
     
+    //Revise HELP and setup structure for updated architecture (no start signal)
+
     if(help){
         cout << "\n" << "Here is some general abstractions architecture and setup information; consult the README and source code for more detail." << endl;
         cout << "\n" << endl;
@@ -82,17 +85,17 @@ void ofApp::setup(){
         cout << "If at any point, a setup error is made, simply restart the program (this is to keep the program streamlined and lightweight)." << endl;
         cout << "Furthermore, the program only scanns audio devices once during setup. To add a newly available device, you must restart the program." << endl;
         cout << "\n" << endl;
-        cout << "A single OSC receiver IP address and port is required unless a node is input-only and responsible for starting the piece." << endl;
+        //cout << "A single OSC receiver IP address and port is required unless a node is input-only and responsible for starting the piece." << endl;
         cout << "If input channels are > 0, you will be required to specify at least one IP address and port for OSC communication." << endl;
-        cout << "You may specify any number of IP addresses and ports for sending input data; receiving data is limited to a single address and port." << endl;
-        cout << "If input functionality is not present, send addresses may optionally be specified exclusively to send the start signal." << endl;;
+        cout << "You may specify any number of IP addresses and ports for sending input data; outputs require a single receiving address and port." << endl;
+        //cout << "If input functionality is not present, send addresses may optionally be specified exclusively to send the start signal." << endl;;
         cout << "In specifying send address/port destinations, one may send to all receivers or only some, at thier discretion." << endl;
-        cout << "Besides sending and receiving the START signal, OSC data is only sent from audio input nodes and received by audio output nodes." << endl;
+        //cout << "Besides sending and receiving the START signal, OSC data is only sent from audio input nodes and received by audio output nodes." << endl;
         cout << "\n" << endl;
         cout << "Abstractions ends when a recursive system within each output channel is allowed to zero; there is no OSC-synchronized ending." << endl;
         cout << "If every device is OSC-connected to each other directly, Abstractions should theoretically have a loosely synchronous ending." << endl;
         cout << "If some output nodes are recieving different OSC data than others, the endings of Abstractions will be asynchronous." << endl;
-        cout << "Output-only nodes will attempt to self-terminate upon completion, all other nodes must be manually terminated after the piece." << endl;
+        //cout << "Output-only nodes will attempt to self-terminate upon completion, all other nodes must be manually terminated after the piece." << endl;
         cout << "\n" << endl;
         cout << "For nodes with inputs and outputs to respond to thier own inputs, the use of a local IP address and port is required." << endl;
         cout << "This implementation is to deliberately democratize the I/O procedures and optimize worst-case efficiency as much as possible." << endl;
@@ -125,9 +128,12 @@ void ofApp::setup(){
     
     if(out_channels > 0){
         settings.numOutputChannels = out_channels;
+        out_z2 = std::make_unique<float[]>(out_channels);
+        out_z1 = std::make_unique<float[]>(out_channels);
         out_dc = std::make_unique<float[]>(out_channels);
         out_amplitude_root = std::make_unique<float[]>(out_channels);
         out_amplitude = std::make_unique<float[]>(out_channels);
+        out_delta = std::make_unique<float[]>(out_channels);
         out_cross = std::make_unique<bool[]>(out_channels);
         out_cross_count = std::make_unique<float[]>(out_channels);
         out_pitch = std::make_unique<float[]>(out_channels);
@@ -136,25 +142,20 @@ void ofApp::setup(){
         phase = std::make_unique<float[]>(out_channels);
         last_amplitude = std::make_unique<float[]>(out_channels);
         amplitude = std::make_unique<float[]>(out_channels);
-        z1 = std::make_unique<float[]>(out_channels);
-        z2 = std::make_unique<float[]>(out_channels);
+        last_delta = std::make_unique<float[]>(out_channels);
+        delta = std::make_unique<float[]>(out_channels);
         for(int a = 0; a < out_channels; a++){
+            out_z1[a] = 0.0;
             out_dc[a] = 0.0;
             out_amplitude_root[a] = 0.0;
             out_amplitude[a] = 0.0;
             out_cross[a] = false;
             out_cross_count[a] = 0.0;
             out_pitch[a] = 1.0;
-            last_phase_increment[a] = 0.0;
             phase_increment[a] = 0.0;
             phase[a] = 0.0;
-            last_amplitude[a] = 0.0;
             amplitude[a] = 0.0;
-            z1[a] = 0.0;
-            /*
-            z2[a] = 0.0;
-            z1[a] = 0.0;
-            */
+            delta[a] = 0.0;      
         }
         receiver_setup();
     }
@@ -185,13 +186,17 @@ void ofApp::setup(){
             spread = false;
         }
         settings.numInputChannels = in_channels;
+        in_z2 = std::make_unique<float[]>(in_channels);
+        in_z1 = std::make_unique<float[]>(in_channels);
         in_dc = std::make_unique<float[]>(in_channels);
         in_amplitude_root = std::make_unique<float[]>(in_channels);
         in_amplitude = std::make_unique<float[]>(in_channels);
+        in_delta = std::make_unique<float[]>(in_channels);
         in_cross = std::make_unique<bool[]>(in_channels);
         in_cross_count = std::make_unique<float[]>(in_channels);
         in_pitch = std::make_unique<float[]>(in_channels);
         for(int a = 0; a < in_channels; a++){
+            in_z1[a] = 0.0;
             in_dc[a] = 0.0;
             in_amplitude_root[a] = 0.0;
             in_amplitude[a] = 0.0;
@@ -255,7 +260,7 @@ void ofApp::setup(){
     else{
         unsigned_integer_warning();
     }
-
+    //REMOVE
     if(!output){
         cout << "Since this node contains no outputs, you may use it to begin the piece without initializing an OSC receiver." << endl;
         cout << "To initialize an OSC receiver (required if starting the piece from another node), enter any character(s) before pressing ENTER." << endl;
@@ -278,16 +283,20 @@ void ofApp::samplewise_updates(){
     sample_count += 1.0;
     samples_per_update += 1.0;
 
-    progress = unipolar_sin(sample_count * epsilon_float);
+    progress = 1.0 - unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, M_PI));
 }
 
-void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross, float &cross_count, float &pitch){  
+void ofApp::analysis(float z1, float sample, float &dc, float &amplitude_root, float &amplitude, float &delta, bool &cross, float &cross_count, float &pitch){  
     dc += sample;
     float dc_adjustment = dc / sample_count;
+    //Revisit whether the thresholding is helpful
     float inverse_dc_magnitude = 1.0 - abs(dc_adjustment);
     float amplitude_root_increment = sqrt(abs(sample - dc_adjustment) * inverse_dc_magnitude);
     amplitude_root += amplitude_root_increment;
     amplitude = pow(amplitude_root / sample_count, 2.0);
+
+    delta = mix(abs(z1 - sample) * 0.5, delta, 1.0 / sample_count);
+
     bool crossed = false;
         
         if(cross){
@@ -311,7 +320,6 @@ void ofApp::analysis(float sample, float &dc, float &amplitude_root, float &ampl
             cross = !cross;
             cross_count += 1.0;
             pitch = cross_count / sample_count;
-            //cout << pitch << endl;
         }
 
 }
@@ -320,38 +328,52 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
     //cout << average_in_amplitude << " " << average_in_pitch << endl;
     for(unsigned int a = 0; a < buffer.getNumFrames(); a++){
         samplewise_updates();
+        
         float total_in_amplitude = 0.0;
-        float total_in_pitch = 0.0;      
+        float total_in_pitch = 0.0;
+        float total_in_delta = 0.0;      
         for(unsigned int b = 0; b < in_channels; b++){
-            analysis(buffer[a * in_channels + b], in_dc[b], in_amplitude_root[b], in_amplitude[b], 
+            float in_sample = buffer[a * in_channels + b];
+            analysis(in_z1[b], in_sample, in_dc[b], in_amplitude_root[b], in_amplitude[b], in_delta[b],
                 in_cross[b], in_cross_count[b], in_pitch[b]);
             total_in_amplitude += in_amplitude[b];
             total_in_pitch += in_pitch[b] * in_amplitude[b];
+            total_in_delta += in_delta[b];
+            in_z1[b] = in_sample;
         }
         average_in_amplitude = total_in_amplitude / in_channels_float;
         average_in_pitch = total_in_pitch / total_in_amplitude;
+        average_in_delta = total_in_delta / in_channels_float;
         float spread_in_amplitude = 0.0;
         float spread_in_pitch = 0.0;
+        float spread_in_delta = 0.0;
         float delta_spread_amplitude = 0.25;
         float delta_spread_pitch = 0.25;
+        float delta_spread_delta = 0.25;
         
         if(spread){
             // ERROR: Correct update incrementation fails
 
             float average_in_amplitude_squared = 0.0;
             float average_in_pitch_squared = 0.0;
+            float average_in_delta_squared = 0.0;
             for(int a = 0; a < in_channels; a++){
                 average_in_amplitude_squared += pow(in_amplitude[a], 2.0);
                 average_in_pitch_squared += pow(in_pitch[a], 2.0);
+                average_in_delta_squared += pow(in_delta[a], 2.0);
             }
             average_in_amplitude_squared /= in_channels_float;
             average_in_pitch_squared /= in_channels_float;
+            average_in_delta_squared /= in_channels_float;
             spread_in_amplitude = sqrt(abs(average_in_amplitude - average_in_amplitude_squared));
             delta_spread_amplitude = abs(spread_in_amplitude - last_spread_in_amplitude);
             last_spread_in_amplitude = spread_in_amplitude;
             spread_in_pitch = sqrt(abs(average_in_pitch - average_in_pitch_squared));
             delta_spread_pitch = abs(spread_in_pitch - last_spread_in_pitch);
             last_spread_in_pitch = spread_in_pitch;
+            spread_in_delta = sqrt(abs(average_in_delta - average_in_delta_squared));
+            delta_spread_delta = abs(spread_in_delta - last_spread_in_delta);
+            last_spread_in_delta = spread_in_delta;
         }
         float update_rate = sqrt(sample_count);
         float current_amplitude_update = amplitude_update;
@@ -360,10 +382,14 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
         //amplitude_update = current_amplitude_update + pow(abs(average_in_amplitude - last_average_in_amplitude) * delta_spread_amplitude, update_power);
         last_average_in_amplitude = average_in_amplitude;
         float current_pitch_update = pitch_update;
-        pitch_update = current_pitch_update + 0.00001; 
+        pitch_update = current_pitch_update + (epsilon_float + (abs(average_in_pitch - last_average_in_pitch) * update_rate)) + 0.0001; 
         //pitch_update = current_pitch_update + epsilon_float + (abs(average_in_pitch - last_average_in_pitch) * update_rate);
         //pitch_update = current_pitch_update + pow(abs(average_in_pitch - last_average_in_pitch), average_in_pitch) * update_rate;
         last_average_in_pitch = average_in_pitch;
+        float current_delta_update = delta_update;
+        delta_update = current_delta_update + 0.0001;
+
+        last_average_in_delta = average_in_delta;
     }
 }
 
@@ -401,21 +427,22 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             }
             
             for(int b = 0; b < out_channels; b++){
+                out_z2[b] = out_z1[b];
                 last_phase_increment[b] = phase_increment[b];
                 phase_increment[b] = calculate_value(last_phase_increment[b], average_pitch, out_pitch[b], spread_pitch, calculate_ring(pitch_progress));
                 phase[b] += phase_increment[b];
-                phase[b] = fmod(phase[b], 1.0);
+                phase[b] = fmod(phase[b], max_float / (float)(b + 1));
                 last_amplitude[b] = amplitude[b];
                 amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, out_amplitude[b], spread_amplitude, calculate_ring(amplitude_progress));
-                //float new_sample = sin(phase[b]) * pow(1.0 - amplitude[b], 2.0); 
-                float new_sample = ofRandomf();
-                float out_sample = ((2.0 * progress * cos(TWO_PI * phase_increment[b]) * z1[b]) - (z2[b] * pow(progress, 2.0)) + new_sample * (1.0 - progress));
+                last_delta[b] = delta[b];
+                delta[b] = calculate_value(last_delta[b], average_delta, out_delta[b], spread_delta, calculate_ring(progress));
+                float new_sample = sin(sin(phase[b]) * HALF_PI / (abs(amplitude[b] - delta[b]) + min_float)); 
+                float out_sample = ((out_z2[b] * pow(progress, 2.0)) - (2.0 * progress * cos(TWO_PI * phase_increment[b]) * out_z1[b]) - new_sample) / 3.0;
                 int index = a * out_channels + b;
                 buffer[index] = out_sample;
-                z2[b] = z1[b];
-                z1[b] = out_sample;
-                analysis(out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], 
-                    out_cross[b], out_cross_count[b], out_pitch[b]);
+                out_z1[b] = out_sample;
+                analysis(out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], 
+                    out_delta[b], out_cross[b], out_cross_count[b], out_pitch[b]);
             }
         }
     }       
@@ -436,6 +463,7 @@ void ofApp::receive_message(ofxOscMessage message, float &average, float &spread
 
 //--------------------------------------------------------------
 void ofApp::update(){
+    
     if(amplitude_update > 1.0){
         ofxOscMessage amplitude_message;
         amplitude_message.setAddress("/amplitude");
@@ -456,6 +484,17 @@ void ofApp::update(){
             senders[a].sendMessage(pitch_message);
         }
         pitch_update -= 1.0;
+    }
+
+    if(delta_update > 1.0){
+        ofxOscMessage delta_message;
+        delta_message.setAddress("/delta");
+        delta_message.addFloatArg(average_in_delta);
+        delta_message.addFloatArg(spread_in_delta);
+        for(int a = 0; a < senders.size(); a++){
+            senders[a].sendMessage(delta_message);
+        }
+        delta_update -= 1.0;
     }
 
     if(output){
@@ -486,6 +525,13 @@ void ofApp::update(){
                     last_average_pitch = average_pitch.load();
                     last_spread_pitch = spread_pitch.load();
                     cout << "pitch" << average_pitch << " " << spread_pitch << " " << pitch_progress << endl;
+                }
+                if(address == "/delta"){
+                    average_delta = received_message.getArgAsFloat(0);
+                    spread_delta = received_message.getArgAsFloat(1);
+                    last_average_delta = average_delta.load();
+                    last_spread_delta = spread_delta.load();
+                    cout << "delta" << average_delta << " " << spread_delta << " " <<  endl;
                 }
             }
         }

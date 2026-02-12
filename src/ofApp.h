@@ -23,8 +23,7 @@ class ofApp : public ofBaseApp{
 		std::array<int, 6> buffer_sizes = {64, 128,256, 512, 1024, 2048};
 		std::array<int, 4> sample_rates = {44100, 48000, 88200, 96000};
 	
-		float epsilon_float;
-		//float min_float;
+		float epsilon_float, min_float, max_float;
 		ofSoundStreamSettings settings;
 		int in_channels, out_channels;
 		float in_channels_float;
@@ -42,12 +41,12 @@ class ofApp : public ofBaseApp{
 		std::atomic<float> parameter_smoothing = 1.0, sample_count = 0.0, samples_per_update = 0.0;
 		void samplewise_updates();
 		
-		std::unique_ptr<float[]> in_dc, in_amplitude_root, in_amplitude, in_cross_count, in_pitch;
-		std::atomic<float> average_in_amplitude, spread_in_amplitude, average_in_pitch, spread_in_pitch, amplitude_update, pitch_update;
+		std::unique_ptr<float[]> in_z2, in_z1, in_dc, in_amplitude_root, in_amplitude, in_delta, in_cross_count, in_pitch;
+		std::atomic<float> average_in_amplitude, spread_in_amplitude, average_in_delta, spread_in_delta, average_in_pitch, spread_in_pitch, amplitude_update, pitch_update, delta_update;
 		std::unique_ptr<bool[]> in_cross;
-		void analysis(float sample, float &dc, float &amplitude_root, float &amplitude, bool &cross,
-			float &cross_count, float &pitch);
-		float last_average_in_amplitude = 0.5, last_average_in_pitch = 0.5, last_spread_in_amplitude = 0.5, last_spread_in_pitch = 0.5;
+		void analysis(float z1, float sample, float &dc, float &amplitude_root, float &amplitude, float &delta, 
+			bool &cross, float &cross_count, float &pitch);
+		float last_average_in_amplitude = 0.5, last_average_in_pitch = 0.5, last_spread_in_amplitude = 0.5, last_spread_in_pitch = 0.5, last_average_in_delta = 0.5, last_spread_in_delta = 0.5;
 		void audioIn(ofSoundBuffer &buffer) override;
 		float mix(float inA, float inB, float mix);
 		float unipolar_sin(float phase);
@@ -55,11 +54,12 @@ class ofApp : public ofBaseApp{
 		float calculate_ring(float progress);
 		float calculate_value(float last_value, float average_in, float out, float spread_in, float ring);
 
-		std::unique_ptr<float[]> z2, z1, out_dc, out_amplitude_root, out_amplitude, out_cross_count, out_pitch, 
-			last_phase_increment, phase_increment, phase, last_amplitude, amplitude;
+		std::unique_ptr<float[]> out_z2, out_z1, out_dc, out_amplitude_root, out_amplitude, out_delta, out_cross_count, out_pitch, 
+			last_phase_increment, phase_increment, phase, last_amplitude, amplitude, last_delta, delta;
 		std::unique_ptr<bool[]> out_cross;
 		std::atomic<float> average_amplitude = 0.5, spread_amplitude = 0.5, last_average_amplitude = 0.5, last_spread_amplitude = 0.5, 
-			average_pitch = 0.5, spread_pitch = 0.5, last_average_pitch = 0.5, last_spread_pitch = 0.5;
+			average_pitch = 0.5, spread_pitch = 0.5, last_average_pitch = 0.5, last_spread_pitch = 0.5,
+			average_delta = 0.5, spread_delta = 0.5, last_average_delta = 0.5, last_spread_delta = 0.5;
 		void audioOut(ofSoundBuffer &buffer) override;
 		float update_count = 0.0;
 		float progress_increment(float last_average, float average, float last_spread, float spread);
