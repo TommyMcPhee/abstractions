@@ -18,11 +18,14 @@ void ofApp::receiver_setup(){
         string receiver_ip;
         int receiver_port;
         
-        if(std::cin >> receiver_ip >> receiver_port){
-            receiver.setup(receiver_ip, receiver_port);
-        }
-        else{
-            osc_setup_warning();
+        while(true){
+            if(std::cin >> receiver_ip >> receiver_port){
+                receiver.setup(receiver_ip, receiver_port);
+                break;
+            }
+            else{
+                osc_setup_warning();
+            }
         }
 
 }
@@ -32,15 +35,17 @@ void ofApp::add_sender(){
     int sender_port;
     cout << "Enter the sender's IP address and port number (in that order, seperated by a space):" << endl;
     
-    if(std::cin >> sender_ip >> sender_port){
-        ofxOscSender new_sender;
-        new_sender.setup(sender_ip, sender_port);
-        senders.push_back(new_sender);
+    while(true){
+        if(std::cin >> sender_ip >> sender_port){
+            ofxOscSender new_sender;
+            new_sender.setup(sender_ip, sender_port);
+            senders.push_back(new_sender);
+            break;
+        }
+        else{
+            osc_setup_warning();
+        }
     }
-    else{
-        osc_setup_warning();
-    }
-
 }
 
 void ofApp::print_array_value(int index, int value){
@@ -88,17 +93,14 @@ void ofApp::setup(){
         cout << "If at any point, a setup error is made, simply restart the program (this is to keep the program streamlined and lightweight)." << endl;
         cout << "Furthermore, the program only scanns audio devices once during setup. To add a newly available device, you must restart the program." << endl;
         cout << "\n" << endl;
-        cout << "A single OSC receiver IP address and port is required unless a node is input-only and responsible for starting the piece." << endl;
+        cout << "A single OSC receiver IP address and port is required for nodes with > 0 output channels. Receiver ports cannot be shared between nodes." << endl;
         cout << "If input channels are > 0, you will be required to specify at least one IP address and port for OSC communication." << endl;
         cout << "You may specify any number of IP addresses and ports for sending input data; receiving data is limited to a single address and port." << endl;
-        cout << "If input functionality is not present, send addresses may optionally be specified exclusively to send the start signal." << endl;;
-        cout << "In specifying send address/port destinations, one may send to all receivers or only some, at thier discretion." << endl;
-        cout << "Besides sending and receiving the START signal, OSC data is only sent from audio input nodes and received by audio output nodes." << endl;
+        cout << "In specifying send address/port destinations, one may send to all receivers or only some, choosing thier desired network architecture." << endl;
         cout << "\n" << endl;
         cout << "Abstractions ends when a recursive system within each output channel is allowed to zero; there is no OSC-synchronized ending." << endl;
         cout << "If every device is OSC-connected to each other directly, Abstractions should theoretically have a loosely synchronous ending." << endl;
         cout << "If some output nodes are recieving different OSC data than others, the endings of Abstractions will be asynchronous." << endl;
-        cout << "Output-only nodes will attempt to self-terminate upon completion, all other nodes must be manually terminated after the piece." << endl;
         cout << "\n" << endl;
         cout << "For nodes with inputs and outputs to respond to thier own inputs, the use of a local IP address and port is required." << endl;
         cout << "This implementation is to deliberately democratize the I/O procedures and optimize worst-case efficiency as much as possible." << endl;
@@ -148,6 +150,8 @@ void ofApp::setup(){
         amplitude = std::make_unique<float[]>(out_channels);
         last_delta = std::make_unique<float[]>(out_channels);
         delta = std::make_unique<float[]>(out_channels);
+        last_slope = std::make_unique<float[]>(out_channels);
+        slope = std::make_unique<float[]>(out_channels);
         for(int a = 0; a < out_channels; a++){
             out_z2[a] = 0.0;
             out_z1[a] = 0.0;
@@ -162,6 +166,7 @@ void ofApp::setup(){
             phase[a] = 0.0;
             amplitude[a] = 0.0;
             delta[a] = 0.0;
+            slope[a] = 0.0;
         }
         receiver_setup();
     }
@@ -269,12 +274,6 @@ void ofApp::setup(){
         unsigned_integer_warning();
     }
 
-    if(!output){
-        cout << "Since this node contains no outputs, you may use it to begin the piece without initializing an OSC receiver." << endl;
-        cout << "To initialize an OSC receiver (required if starting the piece from another node), enter any character(s) before pressing ENTER." << endl;
-        receiver_setup();
-    }
-
     settings.setOutListener(this);
     settings.setInListener(this);
     stream.setup(settings);
@@ -282,18 +281,25 @@ void ofApp::setup(){
 
 void ofApp::samplewise_updates(){
     for(int a = 0; a < update_thread.size(); a++){    
+        
         if(update_thread[a]){
             parameter_smoothing[a] = 1.0 / samples_per_update[a];
             samples_per_update[a] = 0.0;
             update_thread[a] = false;
         }
+
         samples_per_update[a] += 1.0;
-    }
-        
+    }     
     sample_count += 1.0;
     reciprocal_sample_count = 1.0 / sample_count;
-    //revisit
-    progress = unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, M_PI));
+}
+
+float ofApp::calculate_delta(float previous, float current){
+    return 0.5 * (previous - current);
+}
+
+void ofApp::average(float &value, float new_value){
+    value = mix(value, new_value, reciprocal_sample_count);
 }
 
 void ofApp::analysis(float z2, float z1, float sample, float &dc, float &amplitude_root, float &amplitude,
@@ -305,13 +311,11 @@ void ofApp::analysis(float z2, float z1, float sample, float &dc, float &amplitu
     float amplitude_root_increment = sqrt(abs(sample - dc_adjustment) * inverse_dc_magnitude);
     amplitude_root += amplitude_root_increment;
     amplitude = pow(amplitude_root / sample_count, 2.0);
-    delta = mix(delta, 0.5 * abs(z1 - sample), reciprocal_sample_count);
-    if(z1 != 0.0){
-        //slope = mix(slope, acos(z2 + sample / (2.0 * z1)) / TWO_PI, reciprocal_sample_count);
-        slope = 0.0;
-    }
-    //float threshold = amplitude * inverse_dc_magnitude;
-    float threshold = 0.0;
+    float delta0 = calculate_delta(z1, sample);
+    average(delta, abs(delta0));
+    average(slope, abs(calculate_delta(calculate_delta(z2, z1), delta0)));
+    //slope = mix(slope, acos(z2 + sample / (2.0 * z1)) / TWO_PI, reciprocal_sample_count);
+    float threshold = amplitude * inverse_dc_magnitude;
     bool crossed = false;
         
         if(cross){
@@ -381,9 +385,8 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
 
         for(int b = 0; b < 4; b++){
             float current_update = update_in[b];
-            float update_increment = sqrt(reciprocal_sample_count) * pow(change_average[b], abs(0.5 - change_spread[b]));
-            //update_in[b] = current_update + update_increment;
-            update_in[b] = current_update + (abs(ofRandomf()) * 0.0001);
+            float update_increment = sqrt(sample_count.load()) * pow(change_average[b], 1.0 - change_spread[b]);
+            update_in[b] = current_update + update_increment;
         }
     }
 }
@@ -397,18 +400,7 @@ float ofApp::unipolar_sin(float phase){
     return sin(phase) * 0.5 + 0.5;
 }
 
-float ofApp::calculate_ring(float progress){
-    float ring_return = sin(HALF_PI * progress);
-    
-    if(progress > 1.0){
-        ring_return = 1.0;
-    }
-    
-    return ring_return;
-}
-
 float ofApp::calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in){
-    //return mix(last_value, mix(mix(average_in, out, spread_in), average_in * out, ring), 0.95);
     return mix(mix(last_value, average_in, parameter_smoothing), out, spread_in);
 }
 
@@ -419,6 +411,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             samplewise_updates();
         }
         
+        float filter = 1.0 - unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, HALF_PI));
         for(int b = 0; b < out_channels; b++){
             last_phase_increment[b] = phase_increment[b];
             //fix pitch
@@ -429,9 +422,14 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, parameter_smoothing[0], out_amplitude[b], spread_amplitude);
             last_delta[b] = delta[b];
             delta[b] = calculate_value(last_delta[b], average_delta, parameter_smoothing[1], out_delta[b], spread_delta);
-            float new_sample = sin(sin(phase[b]) * HALF_PI * delta[b]); 
+            last_slope[b] = slope[b];
+            slope[b] = calculate_value(last_slope[b], average_slope, parameter_smoothing[2], out_slope[b], spread_slope);
+            float new_sample = sin(sin(phase[b]) * HALF_PI * amplitude[b] / sqrt(delta[b] * slope[b] + min_float));
+            float a2 = mix(calculate_delta(delta[b], amplitude[b]), pow(filter, 2.0), filter);
+            float a1 = mix(delta[b] - amplitude[b], 2.0 * filter * cos(TWO_PI * phase_increment[b]), filter);
             //float new_sample = sin(sin(phase[b]) * HALF_PI / (delta[b] + min_float));
-            //float out_sample = ((2.0 * progress * cos(TWO_PI * phase_increment[b]) * out_z1[b]) - (out_z2[b] * pow(progress, 2.0)) + new_sample) / 3.0;
+            //float out_sample = (a1 - a2 + (new_sample * filter)) / (2.0 + filter);
+            //float out_sample = mix(new_sample, mix(out_z1[b], out_z2[b], slope[b]), pow(filter, pow(delta[b], slope[b])));
             float out_sample = new_sample;
             buffer[a * out_channels + b] = out_sample;
             analysis(out_z2[b], out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], out_delta[b], out_slope[b], 
@@ -445,18 +443,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 float ofApp::progress_increment(float last_average, float average, float last_spread, float spread){
     return pow(abs(last_average - average), 1.0 - abs(last_spread - spread)) * sample_count * epsilon_float;
 }
-/*
-void ofApp::receive_message(ofxOscMessage message, float &average, float &spread, float &progress, float &last_average, float &last_spread){
-    average = message.getArgAsFloat(0);
-    spread = message.getArgAsFloat(1);
-    progress += pow(abs(last_average - average), 1.0 - abs(last_spread - spread)) * samples_per_update * epsilon_float;
-    last_average = average;
-    last_spread = spread;
-}
-*/
 
 //--------------------------------------------------------------
 void ofApp::update(){
+
     for(int a = 0; a < 4; a++){
         //cout << update_in[a] << endl;
         if(update_in[a] > 1.0){

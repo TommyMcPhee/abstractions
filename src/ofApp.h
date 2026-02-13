@@ -1,6 +1,5 @@
 #pragma once
 
-#include "json.hpp"
 #include "ofMain.h"
 #include "ofSoundStream.h"
 #include "ofxOscReceiver.h"
@@ -10,44 +9,35 @@
 
 class ofApp : public ofBaseApp{
 
-	public:
-		std::vector<ofxOscSender> senders;
-		ofxOscReceiver receiver;
-		/*
-		struct message_destination{
-			string message_address;
-			int message_port;
-		};
-		vector<message_destination> message_destinations;
-		*/
-		std::array<int, 6> buffer_sizes = {64, 128,256, 512, 1024, 2048};
-		std::array<int, 4> sample_rates = {44100, 48000, 88200, 96000};
-	
+	public:	
 		float epsilon_float, min_float, in_channels_float;
 		ofSoundStreamSettings settings;
 		int in_channels, out_channels;
 		bool output = true, input = true, spread = true;
 		void cin_refresh();
+		ofxOscReceiver receiver;
 		void osc_setup_warning();
 		void receiver_setup();
+		std::vector<ofxOscSender> senders;
 		void add_sender();
+		std::array<int, 6> buffer_sizes = {64, 128,256, 512, 1024, 2048};
+		std::array<int, 4> sample_rates = {44100, 48000, 88200, 96000};
 		void print_array_value(int index, int value);
 		void unsigned_integer_warning();
 		ofSoundStream stream;
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
 		void setup() override;
-
 		std::array<std::atomic<bool>, 4> update_thread = { false, false, false, false };
 		std::array<std::atomic<float>, 4> parameter_smoothing, samples_per_update, average_in, spread_in, update_in;
 		std::atomic<float> sample_count = 0.0, reciprocal_sample_count;
 		void samplewise_updates();
-		
 		std::unique_ptr<float[]> in_z2, in_z1, in_dc, in_amplitude_root, in_cross_count;
 		std::array<std::unique_ptr<float[]>, 4> in_parameters;
 		std::unique_ptr<bool[]> in_cross;
 
 		//std::atomic<float> average_in_amplitude, spread_in_amplitude, average_in_pitch, spread_in_pitch, amplitude_update, pitch_update;
-		
+		float calculate_delta(float previous, float current);
+		void average(float &value, float new_value);
 		void analysis(float z2, float z1, float sample, float &dc, float &amplitude_root, float &amplitude, 
 			float &delta, float &slope, bool &cross, float &cross_count, float &pitch);
 
@@ -60,7 +50,7 @@ class ofApp : public ofBaseApp{
 		float calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in);
 
 		std::unique_ptr<float[]> out_z2, out_z1, out_dc, out_amplitude_root, out_amplitude, out_delta, out_slope, out_cross_count, out_pitch, 
-			last_phase_increment, phase_increment, phase, last_amplitude, amplitude, last_delta, delta;
+			last_phase_increment, phase_increment, phase, last_amplitude, amplitude, last_delta, delta, last_slope, slope;
 		
 		std::unique_ptr<bool[]> out_cross;
 
@@ -77,8 +67,6 @@ class ofApp : public ofBaseApp{
 		void exit() override;
 
 		std::atomic<float> pitch_progress, amplitude_progress;
-
-		float progress;
 
 		//above average change (total) -> more low pass filtration for parameters and vice versa?
 		//consider segregating local vs OSC variables by weighting OSC more heavily when local is unstable
