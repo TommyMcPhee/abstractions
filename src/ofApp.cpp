@@ -75,8 +75,6 @@ void ofApp::setup(){
     while(std::cin.get(user_input) && user_input != '\n'){
         help = true;
     }
-    
-    //update help info
 
     if(help){
         cout << "\n" << "Here is some general abstractions architecture and setup information; consult the README and source code for more detail." << endl;
