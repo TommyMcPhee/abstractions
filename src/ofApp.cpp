@@ -141,6 +141,8 @@ void ofApp::setup(){
         out_cross = std::make_unique<bool[]>(out_channels);
         out_cross_count = std::make_unique<float[]>(out_channels);
         out_pitch = std::make_unique<float[]>(out_channels);
+
+        modulator_phase = std::make_unique<float[]>(out_channels);
         last_phase_increment = std::make_unique<float[]>(out_channels);
         phase_increment = std::make_unique<float[]>(out_channels);
         phase = std::make_unique<float[]>(out_channels);
@@ -160,6 +162,8 @@ void ofApp::setup(){
             out_cross[a] = false;
             out_cross_count[a] = 0.0;
             out_pitch[a] = 0.0;
+
+            modulator_phase[a] = 0.0;
             phase_increment[a] = 0.0;
             phase[a] = 0.0;
             amplitude[a] = 0.0;
@@ -409,12 +413,15 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             samplewise_updates();
         }
         
-        float filter = 1.0 - unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, HALF_PI));
+        float filter = unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, HALF_PI));
         for(int b = 0; b < out_channels; b++){
+            modulator_phase[b] += slope[b];
+            modulator_phase[b] = fmod(modulator_phase[b], 1.0);
             last_phase_increment[b] = phase_increment[b];
             //fix pitch
             phase_increment[b] = calculate_value(last_phase_increment[b], average_pitch, parameter_smoothing[3], out_pitch[b], spread_pitch);
-            phase[b] += phase_increment[b];
+            phase[b] += sin(modulator_phase[b]) * delta[b] * (1.0 - phase_increment[b]) + phase_increment[b];
+            //phase[b] += phase_increment[b];
             phase[b] = fmod(phase[b], 1.0);
             last_amplitude[b] = amplitude[b];
             amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, parameter_smoothing[0], out_amplitude[b], spread_amplitude);
@@ -422,13 +429,18 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             delta[b] = calculate_value(last_delta[b], average_delta, parameter_smoothing[1], out_delta[b], spread_delta);
             last_slope[b] = slope[b];
             slope[b] = calculate_value(last_slope[b], average_slope, parameter_smoothing[2], out_slope[b], spread_slope);
-            float new_sample = sin(sin(phase[b]) * HALF_PI * amplitude[b] / sqrt(delta[b] * slope[b] + min_float));
-            float a2 = mix(calculate_delta(delta[b], amplitude[b]), pow(filter, 2.0), filter);
-            float a1 = mix(delta[b] - amplitude[b], 2.0 * filter * cos(TWO_PI * phase_increment[b]), filter);
+            //float new_sample = sin(phase[b]);
+
+            
+            float new_sample = sin(sin(phase[b]) * HALF_PI * filter / (amplitude[b] + min_float));
+            //float a2 = mix(calculate_delta(delta[b], amplitude[b]), pow(filter, 2.0), filter);
+            //float a1 = mix(delta[b] - amplitude[b], 2.0 * filter * cos(TWO_PI * phase_increment[b]), filter);
+            
             //float new_sample = sin(sin(phase[b]) * HALF_PI / (delta[b] + min_float));
             //float out_sample = (a1 - a2 + (new_sample * filter)) / (2.0 + filter);
             //float out_sample = mix(new_sample, mix(out_z1[b], out_z2[b], slope[b]), pow(filter, pow(delta[b], slope[b])));
-            float out_sample = new_sample;
+            float out_sample = mix(new_sample, out_z1[b], filter);
+            //float out_sample = new_sample;
             buffer[a * out_channels + b] = out_sample;
             analysis(out_z2[b], out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], out_delta[b], out_slope[b], 
                 out_cross[b], out_cross_count[b], out_pitch[b]);

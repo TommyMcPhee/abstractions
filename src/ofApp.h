@@ -50,7 +50,7 @@ class ofApp : public ofBaseApp{
 		float calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in);
 
 		std::unique_ptr<float[]> out_z2, out_z1, out_dc, out_amplitude_root, out_amplitude, out_delta, out_slope, out_cross_count, out_pitch, 
-			last_phase_increment, phase_increment, phase, last_amplitude, amplitude, last_delta, delta, last_slope, slope;
+			modulator_phase, last_phase_increment, phase_increment, phase, last_amplitude, amplitude, last_delta, delta, last_slope, slope;
 		
 		std::unique_ptr<bool[]> out_cross;
 
