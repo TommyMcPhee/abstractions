@@ -429,10 +429,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             delta[b] = calculate_value(last_delta[b], average_delta, parameter_smoothing[1], out_delta[b], spread_delta);
             last_slope[b] = slope[b];
             slope[b] = calculate_value(last_slope[b], average_slope, parameter_smoothing[2], out_slope[b], spread_slope);
-            //float new_sample = sin(phase[b]);
+            float new_sample = sin(phase[b]);
 
             
-            float new_sample = sin(sin(phase[b]) * HALF_PI * filter / (amplitude[b] + min_float));
+            //float new_sample = sin(sin(phase[b]) * HALF_PI * filter / (amplitude[b] + min_float));
             //float a2 = mix(calculate_delta(delta[b], amplitude[b]), pow(filter, 2.0), filter);
             //float a1 = mix(delta[b] - amplitude[b], 2.0 * filter * cos(TWO_PI * phase_increment[b]), filter);
             float resonance = 0.5 - (0.5 * calculate_delta(slope[b], delta[b]));
