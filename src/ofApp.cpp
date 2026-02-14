@@ -413,14 +413,14 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             samplewise_updates();
         }
         
-        float filter = unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, HALF_PI));
+        float filter = 1.0 - unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, HALF_PI));
         for(int b = 0; b < out_channels; b++){
             modulator_phase[b] += slope[b];
             modulator_phase[b] = fmod(modulator_phase[b], 1.0);
             last_phase_increment[b] = phase_increment[b];
             //fix pitch
             phase_increment[b] = calculate_value(last_phase_increment[b], average_pitch, parameter_smoothing[3], out_pitch[b], spread_pitch);
-            phase[b] += sin(modulator_phase[b]) * delta[b] * (1.0 - phase_increment[b]) + phase_increment[b];
+            phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * delta[b] * (1.0 - phase_increment[b]) + phase_increment[b];
             //phase[b] += phase_increment[b];
             phase[b] = fmod(phase[b], 1.0);
             last_amplitude[b] = amplitude[b];
@@ -435,11 +435,13 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             float new_sample = sin(sin(phase[b]) * HALF_PI * filter / (amplitude[b] + min_float));
             //float a2 = mix(calculate_delta(delta[b], amplitude[b]), pow(filter, 2.0), filter);
             //float a1 = mix(delta[b] - amplitude[b], 2.0 * filter * cos(TWO_PI * phase_increment[b]), filter);
-            
+            float resonance = 0.5 - (0.5 * calculate_delta(slope[b], delta[b]));
+            float a2 = -1.0 * pow(resonance, 2.0);
+            float a1 = 2.0 * resonance * cos(TWO_PI * phase_increment[b]);
             //float new_sample = sin(sin(phase[b]) * HALF_PI / (delta[b] + min_float));
             //float out_sample = (a1 - a2 + (new_sample * filter)) / (2.0 + filter);
             //float out_sample = mix(new_sample, mix(out_z1[b], out_z2[b], slope[b]), pow(filter, pow(delta[b], slope[b])));
-            float out_sample = mix(new_sample, out_z1[b], filter);
+            float out_sample = mix(new_sample, mix(a2, a1, 0.5 - (0.5 * calculate_delta(delta[b], amplitude[b]))), pow(filter, sqrt(6.0)));
             //float out_sample = new_sample;
             buffer[a * out_channels + b] = out_sample;
             analysis(out_z2[b], out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], out_delta[b], out_slope[b], 
