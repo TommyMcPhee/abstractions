@@ -403,7 +403,7 @@ float ofApp::unipolar_sin(float phase){
 }
 
 float ofApp::calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in){
-    return mix(mix(last_value, average_in, parameter_smoothing), out, spread_in);
+    return mix(mix(last_value, average_in, parameter_smoothing), out * abs(sin(filter * M_PI * 3.0)), spread_in);
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
@@ -412,24 +412,25 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         if(!input){
             samplewise_updates();
         }
-        
-        float filter = 1.0 - unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, HALF_PI));
+        //rename variables
+        filter = 1.0 - unipolar_sin(ofClamp(sample_count * epsilon_float, 0.0, HALF_PI));
         for(int b = 0; b < out_channels; b++){
+            last_slope[b] = slope[b];
+            slope[b] = calculate_value(last_slope[b], average_slope, parameter_smoothing[2], out_slope[b], spread_slope);
             modulator_phase[b] += slope[b];
             modulator_phase[b] = fmod(modulator_phase[b], 1.0);
             last_phase_increment[b] = phase_increment[b];
-            //fix pitch
             phase_increment[b] = calculate_value(last_phase_increment[b], average_pitch, parameter_smoothing[3], out_pitch[b], spread_pitch);
-            phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * delta[b] * (1.0 - phase_increment[b]) + phase_increment[b];
+            phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * (delta[b] / (amplitude[b] + min_float)) * (1.0 - phase_increment[b]) + phase_increment[b];
             //phase[b] += phase_increment[b];
             phase[b] = fmod(phase[b], 1.0);
             last_amplitude[b] = amplitude[b];
             amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, parameter_smoothing[0], out_amplitude[b], spread_amplitude);
             last_delta[b] = delta[b];
             delta[b] = calculate_value(last_delta[b], average_delta, parameter_smoothing[1], out_delta[b], spread_delta);
-            last_slope[b] = slope[b];
-            slope[b] = calculate_value(last_slope[b], average_slope, parameter_smoothing[2], out_slope[b], spread_slope);
-            float new_sample = sin(phase[b]);
+           
+            float amplitude_root = sqrt(amplitude[b]);
+            float new_sample = sin(sin(phase[b]) * HALF_PI / (amplitude_root + min_float)) * amplitude_root;
 
             
             //float new_sample = sin(sin(phase[b]) * HALF_PI * filter / (amplitude[b] + min_float));
