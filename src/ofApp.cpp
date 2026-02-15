@@ -421,21 +421,17 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             modulator_phase[b] = fmod(modulator_phase[b], 1.0);
             last_phase_increment[b] = phase_increment[b];
             phase_increment[b] = calculate_value(last_phase_increment[b], average_pitch, parameter_smoothing[3], out_pitch[b], spread_pitch);
-            phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * (delta[b] / (amplitude[b] + min_float)) * (1.0 - phase_increment[b]) + phase_increment[b];
-            //phase[b] += phase_increment[b];
-            phase[b] = fmod(phase[b], 1.0);
             last_amplitude[b] = amplitude[b];
             amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, parameter_smoothing[0], out_amplitude[b], spread_amplitude);
+            float amplitude_root = sqrt(amplitude[b]);
+            phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * (1.0 - phase_increment[b]) * sqrt(delta[b]) + phase_increment[b];
+            //phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * (1.0 - phase_increment[b]) * (delta[b] / (amplitude[b] + min_float)) + phase_increment[b];
+            phase[b] = fmod(phase[b], 1.0);
+            
             last_delta[b] = delta[b];
             delta[b] = calculate_value(last_delta[b], average_delta, parameter_smoothing[1], out_delta[b], spread_delta);
            
-            float amplitude_root = sqrt(amplitude[b]);
             float new_sample = sin(sin(phase[b]) * HALF_PI / (amplitude_root + min_float)) * amplitude_root;
-
-            
-            //float new_sample = sin(sin(phase[b]) * HALF_PI * filter / (amplitude[b] + min_float));
-            //float a2 = mix(calculate_delta(delta[b], amplitude[b]), pow(filter, 2.0), filter);
-            //float a1 = mix(delta[b] - amplitude[b], 2.0 * filter * cos(TWO_PI * phase_increment[b]), filter);
             float resonance = 0.5 - (0.5 * calculate_delta(slope[b], delta[b]));
             float a2 = -1.0 * pow(resonance, 2.0);
             float a1 = 2.0 * resonance * cos(TWO_PI * phase_increment[b]);
@@ -449,6 +445,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
                 out_cross[b], out_cross_count[b], out_pitch[b]);
             out_z2[b] = out_z1[b];
             out_z1[b] = out_sample;
+            last_sample = out_sample;
         }
     }      
 }
