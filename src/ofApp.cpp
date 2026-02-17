@@ -395,9 +395,10 @@ void ofApp::audioIn(ofSoundBuffer &buffer){
     }
 }
 
-float ofApp::add_difference(float current, float total){
-    float offset = current * out_channels_float - total;
-    return (current + offset) / (out_channels_float + abs(offset));
+void ofApp::add_difference(float &difference, float &current, float total){
+    float signed_difference = current * out_channels_float - total;
+    difference = abs(signed_difference);
+    current = mix(current, signed_difference, difference);
 }
 
 float ofApp::mix(float inA, float inB, float mix){
@@ -405,8 +406,8 @@ float ofApp::mix(float inA, float inB, float mix){
     return (1.0 - mix) * inA + (inB * mix);
 }
 
-float ofApp::calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in){
-    return mix(mix(last_value, average_in, parameter_smoothing * (1.0 - progress)), out, pow(spread_in, 0.25));
+float ofApp::calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in, float out_difference){
+    return mix(mix(last_value, average_in, parameter_smoothing * (1.0 - progress)), out, pow(spread_in, out_difference));
     
     //return mix(mix(last_value, average_in, pow(parameter_smoothing, alteration) * (1.0 - progress)), out, spread_in * alteration);
     
@@ -435,26 +436,24 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         float total_pitch = 0.0;
         for(int b = 0; b < out_channels; b++){
             last_amplitude[b] = amplitude[b];
-            amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, parameter_smoothing[0], out_amplitude[b], spread_amplitude);
+            amplitude[b] = calculate_value(last_amplitude[b], average_amplitude, parameter_smoothing[0], out_amplitude[b], spread_amplitude, amplitude_difference);
             total_amplitude += amplitude[b];
             last_delta[b] = delta[b];
-            delta[b] = calculate_value(last_delta[b], average_delta, parameter_smoothing[1], out_delta[b], spread_delta);
+            delta[b] = calculate_value(last_delta[b], average_delta, parameter_smoothing[1], out_delta[b], spread_delta, delta_difference);
             total_delta += delta[b];
             last_slope[b] = slope[b];
-            slope[b] = calculate_value(last_slope[b], average_slope, parameter_smoothing[2], out_slope[b], spread_slope);
+            slope[b] = calculate_value(last_slope[b], average_slope, parameter_smoothing[2], out_slope[b], spread_slope, slope_difference);
             total_slope += slope[b];
             last_pitch[b] = pitch[b];
-            pitch[b] = calculate_value(last_pitch[b], average_pitch, parameter_smoothing[3], out_pitch[b], spread_pitch);
+            pitch[b] = calculate_value(last_pitch[b], average_pitch, parameter_smoothing[3], out_pitch[b], spread_pitch, pitch_difference);
             total_pitch += pitch[b];
         }
-
         for(int b = 0; b < out_channels; b++){
-            amplitude[b] = add_difference(amplitude[b], total_amplitude);
-            delta[b] = add_difference(delta[b], total_delta);
-            slope[b] = add_difference(slope[b], total_slope);
-            pitch[b] = add_difference(pitch[b], total_pitch);
+            add_difference(amplitude_difference, amplitude[b], total_amplitude);
+            add_difference(delta_difference, delta[b], total_delta);
+            add_difference(slope_difference, slope[b], total_slope);
+            add_difference(pitch_difference, pitch[b], total_pitch);
         }
-
         for(int b = 0; b < out_channels; b++){
             modulator_phase[b] += slope[b];
             modulator_phase[b] = fmod(modulator_phase[b], 1.0);

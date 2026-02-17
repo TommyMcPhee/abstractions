@@ -40,11 +40,10 @@ class ofApp : public ofBaseApp{
 			float &delta, float &slope, bool &cross, float &cross_count, float &pitch);
 		
 		void audioIn(ofSoundBuffer &buffer) override;
-		float add_difference(float current, float total);
+		float amplitude_difference = 0.0, delta_difference = 0.0, slope_difference = 0.0, pitch_difference = 0.0;
+		void add_difference(float &difference, float &current, float total);
 		float mix(float inA, float inB, float mix);
-		//revisit calculate_ring vs calculate_value to minimize number of functions
-		float calculate_ring(float progress);
-		float calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in);
+		float calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in, float out_difference);
 
 		std::unique_ptr<float[]> out_z2, out_z1, out_dc, out_amplitude_root, out_amplitude, out_delta, out_slope, out_cross_count, out_pitch, 
 			modulator_phase, last_pitch, pitch, phase, last_amplitude, amplitude, last_delta, delta, last_slope, slope;
