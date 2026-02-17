@@ -406,7 +406,7 @@ float ofApp::mix(float inA, float inB, float mix){
 }
 
 float ofApp::calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in){
-    return mix(mix(last_value, average_in, pow(parameter_smoothing, 1.0 - filter)), out, spread_in);
+    return mix(mix(last_value, average_in, parameter_smoothing * (1.0 - progress)), out, spread_in);
     //return mix(mix(last_value, average_in, pow(parameter_smoothing, MAX(filter, sqrt(alteration)))), out * alteration, spread_in);
 }
 
@@ -417,7 +417,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             samplewise_updates();
         }
         //rename variables
-        filter = 1.0 - sin(ofClamp(sample_count * epsilon_float, 0.0, M_PI));
+
+        progress_phase = ofClamp(sample_count * epsilon_float * 5.0, 0.0, M_PI);
+        progress = progress_phase / M_PI;
+        filter = 1.0 - sin(progress_phase);
         //restate the filter equation
         alteration = abs(sin(filter * M_PI));
         //remove
@@ -450,15 +453,15 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         for(int b = 0; b < out_channels; b++){
             modulator_phase[b] += slope[b];
             modulator_phase[b] = fmod(modulator_phase[b], 1.0);
-            phase[b] += sin(modulator_phase[b]) * (1.0 - pitch[b]) * sqrt(delta[b]) + pitch[b];
-            //phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * (1.0 - pitch[b]) * sqrt(delta[b]) + pitch[b];
+            //phase[b] += sin(modulator_phase[b]) * (1.0 - pitch[b]) * sqrt(delta[b]) + pitch[b];
+            phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * (1.0 - pitch[b]) * sqrt(delta[b]) + pitch[b];
             phase[b] = fmod(phase[b], 1.0);
             float amplitude_root = sqrt(amplitude[b]);
             float new_sample = sin(sin(phase[b]) * HALF_PI / (amplitude_root + min_float)) * amplitude_root;
             float resonance = 0.5 - (0.5 * calculate_delta(slope[b], delta[b]));
             float a2 = -1.0 * pow(resonance, 2.0);
             float a1 = 2.0 * resonance * cos(TWO_PI * pitch[b]);
-            float out_sample = mix(new_sample, mix(a2, a1, 0.5 - (0.5 * calculate_delta(delta[b], amplitude[b]))), filter);
+            float out_sample = mix(new_sample, mix(a2, a1, MAX(0.5 - (0.5 * calculate_delta(delta[b], amplitude[b])), progress)), filter);
             buffer[a * out_channels + b] = out_sample;
             analysis(out_z2[b], out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], out_delta[b], out_slope[b], 
                 out_cross[b], out_cross_count[b], out_pitch[b]);

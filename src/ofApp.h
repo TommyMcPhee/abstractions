@@ -54,7 +54,7 @@ class ofApp : public ofBaseApp{
 		std::atomic<float> average_amplitude = 0.5, spread_amplitude = 0.5, average_delta = 0.5, spread_delta = 0.5, 
 			average_slope = 0.5, spread_slope = 0.5, average_pitch = 0.5, spread_pitch = 0.5;
 
-		float filter, last_sample, alteration;		
+		float progress_phase, progress, filter, last_sample, alteration;		
 		void audioOut(ofSoundBuffer &buffer) override;
 		float update_count = 0.0;
 		float progress_increment(float last_average, float average, float last_spread, float spread);
