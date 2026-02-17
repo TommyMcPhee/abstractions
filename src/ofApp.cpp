@@ -406,7 +406,12 @@ float ofApp::mix(float inA, float inB, float mix){
 }
 
 float ofApp::calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in){
-    return mix(mix(last_value, average_in, parameter_smoothing * (1.0 - progress)), out, spread_in);
+    return mix(mix(last_value, average_in, parameter_smoothing * (1.0 - progress)), out, pow(spread_in, 0.25));
+    
+    //return mix(mix(last_value, average_in, pow(parameter_smoothing, alteration) * (1.0 - progress)), out, spread_in * alteration);
+    
+    //return mix(mix(last_value, average_in, pow(parameter_smoothing, alteration) * (1.0 - progress)), out * alteration, spread_in);
+    
     //return mix(mix(last_value, average_in, pow(parameter_smoothing, MAX(filter, sqrt(alteration)))), out * alteration, spread_in);
 }
 
@@ -418,11 +423,11 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         }
         //rename variables
 
-        progress_phase = ofClamp(sample_count * epsilon_float * 5.0, 0.0, M_PI);
+        progress_phase = ofClamp(sample_count * epsilon_float * 3.0, 0.0, M_PI);
         progress = progress_phase / M_PI;
         filter = 1.0 - sin(progress_phase);
         //restate the filter equation
-        alteration = abs(sin(filter * M_PI));
+        alteration = abs(sin(filter * M_PI * 4.0));
         //remove
         float total_amplitude = 0.0;
         float total_delta = 0.0;
@@ -444,10 +449,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         }
 
         for(int b = 0; b < out_channels; b++){
-            add_difference(amplitude[b], total_amplitude);
-            add_difference(delta[b], total_delta);
-            add_difference(slope[b], total_slope);
-            add_difference(pitch[b], total_pitch);
+            amplitude[b] = add_difference(amplitude[b], total_amplitude);
+            delta[b] = add_difference(delta[b], total_delta);
+            slope[b] = add_difference(slope[b], total_slope);
+            pitch[b] = add_difference(pitch[b], total_pitch);
         }
 
         for(int b = 0; b < out_channels; b++){
@@ -462,6 +467,8 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             float a2 = -1.0 * pow(resonance, 2.0);
             float a1 = 2.0 * resonance * cos(TWO_PI * pitch[b]);
             float out_sample = mix(new_sample, mix(a2, a1, MAX(0.5 - (0.5 * calculate_delta(delta[b], amplitude[b])), progress)), filter);
+            
+            //float out_sample = new_sample;
             buffer[a * out_channels + b] = out_sample;
             analysis(out_z2[b], out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], out_delta[b], out_slope[b], 
                 out_cross[b], out_cross_count[b], out_pitch[b]);
