@@ -66,8 +66,6 @@ void ofApp::setup(){
     reverse_epsilon = 1.0 - epsilon_float;
     min_float = std::numeric_limits<float>::denorm_min();
 
-    cout << 1.0 / epsilon_float << endl;
-
     cout << "Welcome to Abstractions!" << "\n" << endl;
     cout << "Enter any character(s) for detailed information; Press ENTER without input to proceed with setup." << endl;
     char user_input;
@@ -465,7 +463,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             float resonance = 0.5 - (0.5 * calculate_delta(slope[b], delta[b]));
             float a2 = -1.0 * pow(resonance, 2.0);
             float a1 = 2.0 * resonance * cos(TWO_PI * pitch[b]);
-            float out_sample = mix(new_sample, mix(a2, a1, MAX(0.5 - (0.5 * calculate_delta(delta[b], amplitude[b])), progress)), filter);
+            float out_sample = mix(new_sample, mix(a2, a1, MAX(0.5 - (0.5 * calculate_delta(delta[b], amplitude[b])), progress)), pow(filter, 3.0));
             
             //float out_sample = new_sample;
             buffer[a * out_channels + b] = out_sample;
