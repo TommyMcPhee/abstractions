@@ -31,6 +31,7 @@ void ofApp::receiver_setup(){
 }
 
 void ofApp::add_sender(){
+    cin_refresh();
     string sender_ip;
     int sender_port;
     cout << "Enter the sender's IP address and port number (in that order, seperated by a space):" << endl;
@@ -414,9 +415,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             samplewise_updates();
         }
 
-        progress_phase = ofClamp(sample_count * progress_increment, 0.0, M_PI);
-        progress = progress_phase / M_PI;
-        filter = 1.0 - sin(progress_phase);
+        float progress_phase = ofClamp(sample_count * progress_increment, 0.0, M_PI);
+        float mix_new = sin(progress_phase);
+        float mix_new_squared = pow(mix_new, 2.0);
+        filter = 1.0 - mix_new;
 
         float total_amplitude = 0.0;
         float total_delta = 0.0;
@@ -445,7 +447,9 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         for(int b = 0; b < out_channels; b++){
             modulator_phase[b] += slope[b];
             modulator_phase[b] = fmod(modulator_phase[b], 1.0);
-            phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * (1.0 - pitch[b]) * sqrt(delta[b]) + pitch[b];
+            // pow mix_new can be up to 4
+
+            phase[b] += mix_new_squared * sqrt(delta[b]) * sin(modulator_phase[b]) * (1.0 - pitch[b]) + pitch[b];
             phase[b] += pitch[b];
             phase[b] = fmod(phase[b], 1.0);
             float amplitude_root = sqrt(amplitude[b]);
@@ -453,12 +457,10 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             float resonance = 0.5 - (0.5 * calculate_delta(slope[b], delta[b]));
             float a2 = -1.0 * pow(resonance, 2.0);
             float a1 = 2.0 * resonance * cos(TWO_PI * pitch[b]);
-            //float out_sample = new_sample;
-            //float out_sample = (a2 + a1 + new_sample) / 3.0;
-            float out_sample = mix(new_sample, mix(a2, a1, 0.5 - (0.5 * calculate_delta(delta[b], amplitude[b]))), pow(filter, 3.0));
+            float out_sample = mix(new_sample, mix(a2, a1, 0.5 - (0.5 * calculate_delta(delta[b], amplitude[b]))), filter);
             buffer[a * out_channels + b] = out_sample;
-            analysis(out_z2[b], out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], out_delta[b], out_slope[b], 
-                out_cross[b], out_cross_count[b], out_pitch[b]);
+            analysis(out_z2[b], out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], 
+                out_amplitude[b], out_delta[b], out_slope[b], out_cross[b], out_cross_count[b], out_pitch[b]);
         }
     }      
 }
