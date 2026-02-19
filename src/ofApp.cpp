@@ -143,7 +143,6 @@ void ofApp::setup(){
         out_cross = std::make_unique<bool[]>(out_channels);
         out_cross_count = std::make_unique<float[]>(out_channels);
         out_pitch = std::make_unique<float[]>(out_channels);
-
         modulator_phase = std::make_unique<float[]>(out_channels);
         last_pitch = std::make_unique<float[]>(out_channels);
         pitch = std::make_unique<float[]>(out_channels);
@@ -417,8 +416,8 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 
         float progress_phase = ofClamp(sample_count * progress_increment, 0.0, M_PI);
         float mix_new = sin(progress_phase);
-        float mix_new_squared = pow(mix_new, 2.0);
         filter = 1.0 - mix_new;
+        float mix_new_power = pow(mix_new, 4.0);
 
         float total_amplitude = 0.0;
         float total_delta = 0.0;
@@ -447,9 +446,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
         for(int b = 0; b < out_channels; b++){
             modulator_phase[b] += slope[b];
             modulator_phase[b] = fmod(modulator_phase[b], 1.0);
-            // pow mix_new can be up to 4
-
-            phase[b] += mix_new_squared * sqrt(delta[b]) * sin(modulator_phase[b]) * (1.0 - pitch[b]) + pitch[b];
+            phase[b] += mix_new_power * sqrt(delta[b]) * sin(modulator_phase[b]) * (1.0 - pitch[b]) + pitch[b];
             phase[b] += pitch[b];
             phase[b] = fmod(phase[b], 1.0);
             float amplitude_root = sqrt(amplitude[b]);
