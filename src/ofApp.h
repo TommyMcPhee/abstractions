@@ -10,7 +10,8 @@
 class ofApp : public ofBaseApp{
 
 	public:	
-		float epsilon_float, reverse_epsilon, min_float, out_channels_float, in_channels_float;
+		
+	float min_float, progress_increment, out_channels_float, in_channels_float;
 		ofSoundStreamSettings settings;
 		int in_channels, out_channels;
 		bool output = true, input = true, spread = true;
@@ -36,6 +37,7 @@ class ofApp : public ofBaseApp{
 		std::unique_ptr<bool[]> in_cross;
 		float calculate_delta(float previous, float current);
 		void average(float &value, float new_value);
+		
 		void analysis(float z2, float z1, float sample, float &dc, float &amplitude_root, float &amplitude, 
 			float &delta, float &slope, bool &cross, float &cross_count, float &pitch);
 		
@@ -56,19 +58,9 @@ class ofApp : public ofBaseApp{
 		float progress_phase, progress, filter;		
 		void audioOut(ofSoundBuffer &buffer) override;
 		float update_count = 0.0;
-		float progress_increment(float last_average, float average, float last_spread, float spread);
-
 		std::array<string, 4> addresses = {"/amplitude", "/delta", "/slope", "/pitch"};
 		void update() override;
 		void ofSoundStreamClose();
 		void exit() override;
-
-		//above average change (total) -> more low pass filtration for parameters and vice versa?
-		//consider segregating local vs OSC variables by weighting OSC more heavily when local is unstable
-
-		//adjusted pitch will affect which in stream is heard the most in the beginning, but later amp/pitch
-		//average change in progress- more change can corrospond to less amp/pitch fluctuation?
-		//this contradicts how the adjusted pitch will have more role as the piece progresses via orthogonal function to filter
-		//there should be a mechanism of differing outputs more when inputs are more similar, and vice versa
-	
+		
 };

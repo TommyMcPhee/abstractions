@@ -62,9 +62,8 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 }
 
 void ofApp::setup(){
-    epsilon_float = std::numeric_limits<float>::epsilon();
-    reverse_epsilon = 1.0 - epsilon_float;
     min_float = std::numeric_limits<float>::denorm_min();
+    progress_increment = M_PI / 16777216.0;
 
     cout << "Welcome to Abstractions!" << "\n" << endl;
     cout << "Enter any character(s) for detailed information; Press ENTER without input to proceed with setup." << endl;
@@ -405,13 +404,7 @@ float ofApp::mix(float inA, float inB, float mix){
 }
 
 float ofApp::calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in, float out_difference){
-    return mix(mix(last_value, average_in, parameter_smoothing * (1.0 - progress)), out, pow(spread_in, out_difference));
-    
-    //return mix(mix(last_value, average_in, pow(parameter_smoothing, alteration) * (1.0 - progress)), out, spread_in * alteration);
-    
-    //return mix(mix(last_value, average_in, pow(parameter_smoothing, alteration) * (1.0 - progress)), out * alteration, spread_in);
-    
-    //return mix(mix(last_value, average_in, pow(parameter_smoothing, MAX(filter, sqrt(alteration)))), out * alteration, spread_in);
+    return mix(mix(last_value, average_in, pow(parameter_smoothing, filter)), out, filter * pow(spread_in, out_difference));  
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
@@ -421,7 +414,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             samplewise_updates();
         }
 
-        progress_phase = ofClamp(sample_count * epsilon_float, 0.0, M_PI);
+        progress_phase = ofClamp(sample_count * progress_increment, 0.0, M_PI);
         progress = progress_phase / M_PI;
         filter = 1.0 - sin(progress_phase);
 
@@ -453,26 +446,19 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
             modulator_phase[b] += slope[b];
             modulator_phase[b] = fmod(modulator_phase[b], 1.0);
             phase[b] += (1.0 - filter) * sin(modulator_phase[b]) * (1.0 - pitch[b]) * sqrt(delta[b]) + pitch[b];
+            phase[b] += pitch[b];
             phase[b] = fmod(phase[b], 1.0);
             float amplitude_root = sqrt(amplitude[b]);
             float new_sample = sin(sin(phase[b]) * HALF_PI / (amplitude_root + min_float)) * amplitude_root;
             float resonance = 0.5 - (0.5 * calculate_delta(slope[b], delta[b]));
             float a2 = -1.0 * pow(resonance, 2.0);
             float a1 = 2.0 * resonance * cos(TWO_PI * pitch[b]);
-            float out_sample = mix(new_sample, mix(a2, a1, MAX(0.5 - (0.5 * calculate_delta(delta[b], amplitude[b])), progress)), pow(filter, 3.0));
+            //float out_sample = new_sample;
+            //float out_sample = (a2 + a1 + new_sample) / 3.0;
+            float out_sample = mix(new_sample, mix(a2, a1, 0.5 - (0.5 * calculate_delta(delta[b], amplitude[b]))), pow(filter, 3.0));
             buffer[a * out_channels + b] = out_sample;
             analysis(out_z2[b], out_z1[b], out_sample, out_dc[b], out_amplitude_root[b], out_amplitude[b], out_delta[b], out_slope[b], 
                 out_cross[b], out_cross_count[b], out_pitch[b]);
-            
-            if(filter < 1.0){
-                out_z2[b] = out_z1[b];
-                out_z1[b] = out_sample;
-            }
-            else{
-                out_z2[b] = out_z1[b] * reverse_epsilon;
-                out_z1[b] = out_sample * reverse_epsilon;
-            }
-
         }
     }      
 }
@@ -486,7 +472,7 @@ void ofApp::update(){
             message.addFloatArg(average_in[a]);
             message.addFloatArg(spread_in[a]);
             for(int a = 0; a < senders.size(); a++){
-                senders[a].sendMessage(message);;
+                senders[a].sendMessage(message);
             }
             update_in[a] -= 1.0;
         }
