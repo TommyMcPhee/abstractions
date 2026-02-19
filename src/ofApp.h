@@ -27,9 +27,8 @@ class ofApp : public ofBaseApp{
 		void unsigned_integer_warning();
 		ofSoundStream stream;
 		void ofSoundStreamSetup(ofSoundStreamSettings &settings);
-		void setup() override;
-		std::array<std::atomic<bool>, 4> update_thread = { false, false, false, false };
-		std::array<std::atomic<float>, 4> parameter_smoothing, samples_per_update, average_in, spread_in, update_in;
+		void setup() override;		
+		std::array<std::atomic<float>, 4> average_in, spread_in, update_in;
 		std::atomic<float> sample_count = 0.0, reciprocal_sample_count;
 		void samplewise_updates();
 		std::unique_ptr<float[]> in_z2, in_z1, in_dc, in_amplitude_root, in_cross_count;
@@ -42,7 +41,9 @@ class ofApp : public ofBaseApp{
 			float &delta, float &slope, bool &cross, float &cross_count, float &pitch);
 		
 		void audioIn(ofSoundBuffer &buffer) override;
-		float amplitude_difference = 0.0, delta_difference = 0.0, slope_difference = 0.0, pitch_difference = 0.0;
+		std::array<std::atomic<bool>, 4> update_thread = { false, false, false, false };
+		std::array<std::atomic<float>, 4> parameter_smoothing, samples_per_update;
+		float filter, amplitude_difference = 0.0, delta_difference = 0.0, slope_difference = 0.0, pitch_difference = 0.0;
 		void add_difference(float &difference, float &current, float total);
 		float mix(float inA, float inB, float mix);
 		float calculate_value(float last_value, float average_in, float parameter_smoothing, float out, float spread_in, float out_difference);
@@ -54,10 +55,8 @@ class ofApp : public ofBaseApp{
 
 		std::atomic<float> average_amplitude = 0.5, spread_amplitude = 0.5, average_delta = 0.5, spread_delta = 0.5, 
 			average_slope = 0.5, spread_slope = 0.5, average_pitch = 0.5, spread_pitch = 0.5;
-
-		float filter;		
+		
 		void audioOut(ofSoundBuffer &buffer) override;
-		float update_count = 0.0;
 		std::array<string, 4> addresses = {"/amplitude", "/delta", "/slope", "/pitch"};
 		void update() override;
 		void ofSoundStreamClose();

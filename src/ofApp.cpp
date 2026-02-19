@@ -163,12 +163,12 @@ void ofApp::setup(){
             out_cross[a] = false;
             out_cross_count[a] = 0.0;
             out_pitch[a] = 0.0;
-            modulator_phase[a] = 0.0;
             pitch[a] = 0.0;
-            phase[a] = 0.0;
             amplitude[a] = 0.0;
             delta[a] = 0.0;
             slope[a] = 0.0;
+            modulator_phase[a] = 0.0;
+            phase[a] = 0.0;
         }
         receiver_setup();
     }
@@ -281,17 +281,7 @@ void ofApp::setup(){
     stream.setup(settings);
 }
 
-void ofApp::samplewise_updates(){
-    for(int a = 0; a < update_thread.size(); a++){    
-        
-        if(update_thread[a]){
-            parameter_smoothing[a] = 1.0 / samples_per_update[a];
-            samples_per_update[a] = 0.0;
-            update_thread[a] = false;
-        }
-
-        samples_per_update[a] += 1.0;
-    }     
+void ofApp::samplewise_updates(){     
     sample_count += 1.0;
     reciprocal_sample_count = 1.0 / sample_count;
 }
@@ -408,17 +398,27 @@ float ofApp::calculate_value(float last_value, float average_in, float parameter
 }
 
 void ofApp::audioOut(ofSoundBuffer &buffer){
-    for(int a = 0; a < buffer.getNumFrames(); a++){;
-        
+    for(int a = 0; a < buffer.getNumFrames(); a++){
+      
         if(!input){
             samplewise_updates();
         }
+
+        for(int a = 0; a < update_thread.size(); a++){    
+        
+            if(update_thread[a]){
+                parameter_smoothing[a] = 1.0 / samples_per_update[a];
+                samples_per_update[a] = 0.0;
+                update_thread[a] = false;
+            }
+
+        samples_per_update[a] += 1.0;
+    }
 
         float progress_phase = ofClamp(sample_count * progress_increment, 0.0, M_PI);
         float mix_new = sin(progress_phase);
         filter = 1.0 - mix_new;
         float mix_new_power = pow(mix_new, 4.0);
-
         float total_amplitude = 0.0;
         float total_delta = 0.0;
         float total_slope = 0.0;
@@ -465,6 +465,7 @@ void ofApp::audioOut(ofSoundBuffer &buffer){
 void ofApp::update(){
 
     for(int a = 0; a < 4; a++){
+        
         if(update_in[a] > 1.0){
             ofxOscMessage message;
             message.setAddress(addresses[a]);
