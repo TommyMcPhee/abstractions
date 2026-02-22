@@ -3,6 +3,10 @@
 #include <cmath>
 #include <ofxOsc.h>
 
+#ifdef TARGET_WIN32
+#define M_PI PI
+#endif
+
 void ofApp::cin_refresh(){
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -64,7 +68,6 @@ void ofApp::ofSoundStreamSetup(ofSoundStreamSettings &settings){
 
 void ofApp::setup(){
     min_float = std::numeric_limits<float>::denorm_min();
-    progress_increment = M_PI / 16777216.0;
 
     cout << "Welcome to Abstractions!" << "\n" << endl;
     cout << "Enter any character(s) for detailed information; Press ENTER without input to proceed with setup." << endl;
@@ -200,46 +203,47 @@ void ofApp::setup(){
             spread = false;
         }
 
-        settings.numInputChannels = in_channels;
-        in_dc = std::make_unique<float[]>(in_channels);
-        in_amplitude_root = std::make_unique<float[]>(in_channels);
-        in_cross = std::make_unique<bool[]>(in_channels);
-        in_cross_count = std::make_unique<float[]>(in_channels);
-        in_z1 = std::make_unique<float[]>(in_channels);
-        in_z2 = std::make_unique<float[]>(in_channels);
-        for(int a = 0; a < 4; a++){
-            in_parameters[a] = std::make_unique<float[]>(in_channels);
-            for(int b = 0; b < in_channels; b++){
-                in_z2[b] = 0.0;
-                in_z1[b] = 0.0;
-                in_dc[b] = 0.0;
-                in_amplitude_root[b] = 0.0;
-                in_cross[b] = false;
-                in_cross_count[b] = 0.0;
-                in_parameters[a][b] = 0.0;
-            }
+    settings.numInputChannels = in_channels;
+    in_dc = std::make_unique<float[]>(in_channels);
+    in_amplitude_root = std::make_unique<float[]>(in_channels);
+    in_cross = std::make_unique<bool[]>(in_channels);
+    in_cross_count = std::make_unique<float[]>(in_channels);
+    in_z1 = std::make_unique<float[]>(in_channels);
+    in_z2 = std::make_unique<float[]>(in_channels);
+    for(int a = 0; a < 4; a++){
+        in_parameters[a] = std::make_unique<float[]>(in_channels);
+        for(int b = 0; b < in_channels; b++){
+            in_z2[b] = 0.0;
+            in_z1[b] = 0.0;
+            in_dc[b] = 0.0;
+            in_amplitude_root[b] = 0.0;
+            in_cross[b] = false;
+            in_cross_count[b] = 0.0;
+            in_parameters[a][b] = 0.0;
         }
+    }
+    add_sender();
+    additional_sender_loop:
+    char user_inputb;
+    cout << "Enter any character(s) to add an OSC destination; press ENTER without input to skip." << endl;
+    
+    while(true){
+        std::cin.ignore();
+        std::cin.get(user_inputb);
+        if(user_inputb == '\n'){
+            goto complete_setup;
+        }
+        else{
+            add_sender();
+            goto additional_sender_loop;
+        }
+    }
+
+    goto additional_sender_loop;
     }
     else{
         input = false;
-        additional_sender_loop:
-        char user_inputb;
-        cout << "Enter any character(s) to add an OSC destination; press ENTER without input to skip." << endl;
-        while(true){
-            std::cin.ignore();
-            std::cin.get(user_inputb);
-            if(user_inputb == '\n'){
-                goto complete_setup;
-            }
-            else{
-                add_sender();
-                goto additional_sender_loop;
-            }
-        }
     }
-    
-    add_sender();
-    goto additional_sender_loop;
 
     complete_setup:
     unsigned int buffer_sizes_size = buffer_sizes.size();
@@ -275,9 +279,28 @@ void ofApp::setup(){
     else{
         unsigned_integer_warning();
     }
+    if(output){
+        cout << "Enter the speedup factor of this output node (floats less than 1.0 will round up to 1.0)" << endl;
+        float speedup;
 
-    settings.setOutListener(this);
+        if(std::cin >> speedup){
+
+            if(speedup < 1.0){
+                speedup = 1.0;
+            }
+            
+            progress_increment = speedup * M_PI / 16777216.0;
+
+        }
+        else{
+            cout << "Please enter a float." << endl;
+            cin_refresh();
+        }
+        
+    }
+
     settings.setInListener(this);
+    settings.setOutListener(this);
     stream.setup(settings);
 }
 

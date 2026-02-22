@@ -11,7 +11,7 @@ class ofApp : public ofBaseApp{
 
 	public:	
 		
-	float min_float, progress_increment, out_channels_float, in_channels_float;
+	float min_float, out_channels_float, in_channels_float, progress_increment;
 		ofSoundStreamSettings settings;
 		int in_channels, out_channels;
 		bool output = true, input = true, spread = true;
